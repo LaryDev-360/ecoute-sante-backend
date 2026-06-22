@@ -29,7 +29,7 @@ def get_user_facility(user: User) -> Facility | None:
         return None
     if user.role in (UserRole.ADMIN, UserRole.MINISTRY_SUPERVISOR):
         return None
-    if user.role == UserRole.HOSPITAL_MANAGER:
+    if user.role in (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT):
         assignment = (
             UserFacilityAssignment.objects.filter(user=user)
             .select_related("facility")
@@ -46,7 +46,7 @@ def get_facilities_queryset_for_user(user: User):
     if user.role in (UserRole.ADMIN, UserRole.MINISTRY_SUPERVISOR):
         return qs
 
-    if user.role == UserRole.HOSPITAL_MANAGER:
+    if user.role in (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT):
         facility = get_user_facility(user)
         if facility:
             return qs.filter(pk=facility.pk)

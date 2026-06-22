@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "apps.common",
     "apps.accounts",
     "apps.facilities",
+    "apps.complaints",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

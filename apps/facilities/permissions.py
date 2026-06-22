@@ -36,6 +36,9 @@ class CanManageFacilities(BasePermission):
                 return unassigned
             return not unassigned
 
+        if role == UserRole.FACILITY_AGENT:
+            return get_user_facility(request.user) is not None
+
         return False
 
     def has_object_permission(self, request, view, obj):
@@ -53,6 +56,10 @@ class CanManageFacilities(BasePermission):
             own = get_user_facility(request.user)
             return own is not None and own.pk == obj.pk
 
+        if role == UserRole.FACILITY_AGENT:
+            own = get_user_facility(request.user)
+            return own is not None and own.pk == obj.pk
+
         return False
 
 
@@ -65,7 +72,9 @@ class CanManageFacilityServices(BasePermission):
         role = request.user.role
         if role in (UserRole.ADMIN, UserRole.MINISTRY_SUPERVISOR):
             return True
-        return role == UserRole.HOSPITAL_MANAGER and get_user_facility(request.user) is not None
+        return role in (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT) and (
+            get_user_facility(request.user) is not None
+        )
 
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:

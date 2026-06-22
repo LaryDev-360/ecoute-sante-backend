@@ -35,8 +35,12 @@ class IsMinistryOrAdmin(BasePermission):
 
 
 class IsHospitalStaff(BasePermission):
-    """Hospital manager or admin."""
+    """Hospital manager, facility agent, or admin."""
 
     def has_permission(self, request, view):
         role = getattr(request.user, "role", None)
-        return request.user.is_authenticated and role in ("ADMIN", "HOSPITAL_MANAGER")
+        return request.user.is_authenticated and role in (
+            "ADMIN",
+            "HOSPITAL_MANAGER",
+            "FACILITY_AGENT",
+        )

@@ -146,8 +146,8 @@ class UserFacilityAssignmentSerializer(serializers.ModelSerializer):
         read_only_fields = ("assigned_at",)
 
     def validate_user(self, user):
-        if user.role != UserRole.HOSPITAL_MANAGER:
+        if user.role not in (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT):
             raise serializers.ValidationError(
-                "Seuls les responsables d'établissement peuvent être affectés."
+                "Seuls les responsables ou agents d'établissement peuvent être affectés."
             )
         return user

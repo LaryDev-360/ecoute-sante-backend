@@ -8,6 +8,7 @@ class UserRole(models.TextChoices):
     ADMIN = "ADMIN", "Administrateur"
     MINISTRY_SUPERVISOR = "MINISTRY_SUPERVISOR", "Superviseur ministère"
     HOSPITAL_MANAGER = "HOSPITAL_MANAGER", "Responsable hôpital"
+    FACILITY_AGENT = "FACILITY_AGENT", "Agent d'établissement"
 
 
 class User(AbstractUser):
@@ -35,6 +36,14 @@ class User(AbstractUser):
     @property
     def is_hospital_manager(self):
         return self.role == UserRole.HOSPITAL_MANAGER
+
+    @property
+    def is_facility_agent(self):
+        return self.role == UserRole.FACILITY_AGENT
+
+    @property
+    def is_facility_staff(self):
+        return self.role in (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT)
 
 
 class OTPPurpose(models.TextChoices):

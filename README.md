@@ -70,6 +70,7 @@ En développement, les codes OTP sont affichés dans la console du serveur (`EMA
 
 ```bash
 python manage.py seed_facilities
+python manage.py seed_data
 ```
 
 ### Établissements (API)
@@ -100,6 +101,7 @@ apps/
   common/        # Utilitaires partagés (pagination, permissions, exceptions)
   accounts/      # Utilisateurs, auth JWT, OTP
   facilities/    # Établissements sanitaires, services, affectations
+  complaints/    # Plaintes, catégories, historique de statuts
 requirements/    # Dépendances (base, dev, prod)
 ```
 
