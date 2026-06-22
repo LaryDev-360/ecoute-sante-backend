@@ -93,6 +93,15 @@ python manage.py seed_data
 python manage.py test --settings=config.settings.test
 ```
 
+### API publique (Phase 4)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/api/v1/complaints/` | Soumettre un signalement (+ pièces jointes) |
+| `GET` | `/api/v1/complaints/track/{reference}/` | Suivre par référence |
+| `GET` | `/api/v1/complaints/categories/` | Catégories actives |
+| `GET` | `/api/v1/complaints/meta/submitter-profiles/` | Profils déclarant (usager / agent) |
+
 ## Structure
 
 ```text

@@ -91,6 +91,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Pièces jointes plaintes
+COMPLAINT_ATTACHMENT_MAX_SIZE = 5 * 1024 * 1024  # 5 Mo
+COMPLAINT_ATTACHMENT_ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+]
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # OTP & e-mail
@@ -123,6 +132,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": "20/min",
         "otp": "5/min",
+        "public_complaint": "30/hour",
     },
 }
 

@@ -13,5 +13,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": "1000/min",
         "otp": "1000/min",
+        "public_complaint": "1000/hour",
     },
 }
