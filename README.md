@@ -86,6 +86,12 @@ python manage.py seed_facilities
 
 **Règles :** admin/ministère gèrent tout ; un responsable sans affectation peut créer/importer un établissement (rattachement auto) ; un responsable affecté gère uniquement le sien.
 
+## Tests
+
+```bash
+python manage.py test --settings=config.settings.test
+```
+
 ## Structure
 
 ```text
