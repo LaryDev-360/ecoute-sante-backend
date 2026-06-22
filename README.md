@@ -50,6 +50,22 @@ python manage.py runserver
 - **Schéma OpenAPI :** http://127.0.0.1:8000/api/schema/
 - **Health check :** http://127.0.0.1:8000/api/v1/health/
 
+## Authentification
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/api/v1/auth/register/` | Inscription (responsable hôpital) |
+| `POST` | `/api/v1/auth/login/` | Connexion (username + password → JWT) |
+| `POST` | `/api/v1/auth/refresh/` | Rafraîchir le token |
+| `GET` | `/api/v1/auth/me/` | Profil connecté |
+| `POST` | `/api/v1/auth/otp/request/` | Demander un code OTP (`LOGIN` ou `RESET_PASSWORD`) |
+| `POST` | `/api/v1/auth/otp/verify/` | Vérifier OTP (connexion sans mot de passe) |
+| `POST` | `/api/v1/auth/password/forgot/` | Mot de passe oublié (envoi OTP) |
+| `POST` | `/api/v1/auth/password/reset/` | Réinitialiser avec OTP + nouveau mot de passe |
+| `POST` | `/api/v1/auth/password/change/` | Changer le mot de passe (connecté) |
+
+En développement, les codes OTP sont affichés dans la console du serveur (`EMAIL_BACKEND=console`).
+
 ## Structure
 
 ```text
