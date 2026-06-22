@@ -14,5 +14,6 @@ REST_FRAMEWORK = {
         "auth": "1000/min",
         "otp": "1000/min",
         "public_complaint": "1000/hour",
+        "ai_classify": "1000/hour",
     },
 }

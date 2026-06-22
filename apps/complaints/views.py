@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from apps.common.schema import COMMON_ERRORS
+
 from apps.complaints.models import Complaint, ComplaintCategory
 from apps.complaints.serializers import (
     SUBMITTER_PROFILE_META,
@@ -41,7 +43,7 @@ class ComplaintSubmitView(APIView):
             "Pour `FACILITY_AGENT`, fournir un token JWT."
         ),
         request=ComplaintCreateSerializer,
-        responses={201: ComplaintCreateResponseSerializer},
+        responses={201: ComplaintCreateResponseSerializer, **COMMON_ERRORS},
         examples=[
             OpenApiExample(
                 "Plainte usager",

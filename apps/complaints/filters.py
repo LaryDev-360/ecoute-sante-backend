@@ -14,3 +14,8 @@ class HospitalComplaintFilter(django_filters.FilterSet):
     class Meta:
         model = Complaint
         fields = ["status", "category", "service", "severity", "date_from", "date_to"]
+
+
+class MinistryComplaintFilter(HospitalComplaintFilter):
+    region = django_filters.CharFilter(field_name="facility__region", lookup_expr="icontains")
+    facility = django_filters.NumberFilter(field_name="facility_id")

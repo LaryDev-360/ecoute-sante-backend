@@ -16,6 +16,13 @@ pip install -r requirements/dev.txt
 cp .env.example .env
 ```
 
+Ou via Makefile :
+
+```bash
+make install
+cp .env.example .env
+```
+
 ## Base de données (Docker)
 
 Démarrer PostgreSQL :
@@ -44,11 +51,39 @@ Conserver les données entre les arrêts ; pour tout réinitialiser : `docker co
 
 ```bash
 python manage.py runserver
+# ou
+make run
 ```
 
 - **Swagger UI :** http://127.0.0.1:8000/api/docs/
 - **Schéma OpenAPI :** http://127.0.0.1:8000/api/schema/
 - **Health check :** http://127.0.0.1:8000/api/v1/health/
+
+### Commandes utiles (Makefile)
+
+| Commande | Description |
+|----------|-------------|
+| `make db-up` | Démarrer PostgreSQL (Docker) |
+| `make migrate` | Appliquer les migrations |
+| `make seed` | Migrations + établissements + données démo |
+| `make run` | Serveur de développement |
+| `make test` | Suite de tests |
+
+## CORS
+
+Les origines autorisées sont configurées via `CORS_ALLOWED_ORIGINS` dans `.env` (séparées par des virgules). Par défaut : `http://localhost:3000`.
+
+## Production
+
+Variables essentielles (voir `.env.example`) :
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | Clé secrète Django (longue, aléatoire) |
+| `DEBUG` | `False` en production |
+| `ALLOWED_HOSTS` | Domaines autorisés (séparés par des virgules) |
+| `DATABASE_URL` | URL PostgreSQL (`postgres://user:pass@host:5432/db`) |
+| `CORS_ALLOWED_ORIGINS` | Origines frontend HTTPS autorisées |
 
 ## Authentification
 
@@ -69,9 +104,23 @@ En développement, les codes OTP sont affichés dans la console du serveur (`EMA
 ### Seed données de test
 
 ```bash
+make seed
+# ou manuellement :
 python manage.py seed_facilities
 python manage.py seed_data
 ```
+
+Comptes démo créés par `seed_data` :
+
+| Utilisateur | Mot de passe | Rôle |
+|-------------|--------------|------|
+| `admin` | `admin123` | Administrateur |
+| `ministry.bj` | `Ministry123!` | Superviseur ministère |
+| `manager.cnhu` | `Manager123!` | Responsable CNHU |
+| `manager.suru` | `Manager123!` | Responsable HZ Suru-Léré |
+| `agent.a` / `agent.b` | `Agent123!` | Agents CNHU |
+
+La commande crée aussi 8 plaintes variées (statuts, catégories, établissements) pour une démo bout-en-bout.
 
 ### Établissements (API)
 
@@ -90,8 +139,12 @@ python manage.py seed_data
 ## Tests
 
 ```bash
+make test
+# ou
 python manage.py test --settings=config.settings.test
 ```
+
+90 tests incluant 3 parcours d'intégration et 6 tests API IA (OpenRouter mocké).
 
 ### API publique (Phase 4)
 
@@ -113,6 +166,24 @@ python manage.py test --settings=config.settings.test
 | `PATCH` | `/api/v1/hospital/complaints/{id}/reject/` | Rejeter (motif obligatoire) |
 | `POST` | `/api/v1/hospital/complaints/{id}/comments/` | Commentaire interne |
 
+### API ministère (Phase 6)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/api/v1/ministry/dashboard/` | KPIs nationaux |
+| `GET` | `/api/v1/ministry/analytics/` | Agrégats détaillés |
+| `GET` | `/api/v1/ministry/complaints/` | Liste nationale (filtres) |
+| `GET` | `/api/v1/ministry/complaints/?export=csv` | Export CSV via liste |
+| `GET` | `/api/v1/ministry/complaints/export/` | Export CSV dédié |
+
+### API IA (Phase 8)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/api/v1/ai/classify/` | Suggestion catégorie + priorité (OpenRouter, indicatif) |
+
+Configurer `OPENROUTER_API_KEY` dans `.env` (clé gratuite sur [openrouter.ai](https://openrouter.ai)). Modèle par défaut : `openrouter/free`.
+
 ## Structure
 
 ```text
@@ -122,6 +193,8 @@ apps/
   accounts/      # Utilisateurs, auth JWT, OTP
   facilities/    # Établissements sanitaires, services, affectations
   complaints/    # Plaintes, catégories, historique de statuts
+  analytics/     # Services d'agrégation (ministère)
+  ai/            # Classification assistée (OpenRouter)
 requirements/    # Dépendances (base, dev, prod)
 ```
 

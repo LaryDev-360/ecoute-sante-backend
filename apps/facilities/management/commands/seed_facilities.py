@@ -68,7 +68,7 @@ class Command(BaseCommand):
                         name=service_name,
                     )
 
-        manager = User.objects.filter(username="manager.test").first()
+        manager = User.objects.filter(username="manager.cnhu").first()
         cnhu = Facility.objects.filter(code="CNHU-HKM").first()
         if manager and cnhu:
             UserFacilityAssignment.objects.update_or_create(

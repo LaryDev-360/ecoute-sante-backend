@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.models import UserRole
+from apps.common.permissions import IsMinistryOrAdmin
 from apps.complaints.hospital_services import FACILITY_STAFF_ROLES
 from apps.facilities.services import get_user_facility
 
@@ -18,3 +19,6 @@ class IsHospitalComplaintStaff(BasePermission):
         if request.user.role in FACILITY_STAFF_ROLES:
             return get_user_facility(request.user) is not None
         return False
+
+
+MinistryPermission = IsMinistryOrAdmin

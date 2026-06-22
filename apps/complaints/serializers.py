@@ -212,6 +212,8 @@ class HospitalComplaintListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     service_name = serializers.CharField(source="service.name", read_only=True)
     facility_name = serializers.CharField(source="facility.name", read_only=True)
+    facility_code = serializers.CharField(source="facility.code", read_only=True)
+    facility_region = serializers.CharField(source="facility.region", read_only=True)
 
     class Meta:
         model = Complaint
@@ -227,6 +229,8 @@ class HospitalComplaintListSerializer(serializers.ModelSerializer):
             "category_name",
             "service_name",
             "facility_name",
+            "facility_code",
+            "facility_region",
             "created_at",
             "updated_at",
         )

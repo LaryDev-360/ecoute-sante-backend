@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third-party
+    "corsheaders",
     "rest_framework",
     "django_filters",
     "drf_spectacular",
@@ -35,12 +36,15 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.facilities",
     "apps.complaints",
+    "apps.analytics",
+    "apps.ai",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -107,6 +111,9 @@ OTP_LENGTH = 6
 OTP_EXPIRY_MINUTES = 10
 OTP_MAX_ATTEMPTS = 5
 
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOW_CREDENTIALS = True
+
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@sante-ecoute.bj")
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
@@ -133,8 +140,17 @@ REST_FRAMEWORK = {
         "auth": "20/min",
         "otp": "5/min",
         "public_complaint": "30/hour",
+        "ai_classify": "20/hour",
     },
 }
+
+# OpenRouter (classification IA — Phase 8)
+OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
+OPENROUTER_MODEL = env("OPENROUTER_MODEL", default="openrouter/free")
+OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+OPENROUTER_TIMEOUT = env.int("OPENROUTER_TIMEOUT", default=15)
+OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="Santé Écoute")
+OPENROUTER_APP_URL = env("OPENROUTER_APP_URL", default="http://localhost:8000")
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),

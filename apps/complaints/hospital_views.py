@@ -1,8 +1,10 @@
-from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.common.schema import COMMON_ERRORS
 
 from apps.complaints.filters import HospitalComplaintFilter
 from apps.complaints.hospital_services import build_hospital_dashboard, get_hospital_complaints_queryset
@@ -28,6 +30,7 @@ class HospitalDashboardView(APIView):
             "KPIs : totaux par statut, délai moyen de traitement, "
             "top catégories et services."
         ),
+        responses={200: OpenApiResponse(description="Indicateurs établissement"), 403: COMMON_ERRORS[403]},
     )
     def get(self, request):
         return Response(build_hospital_dashboard(request.user))
@@ -37,10 +40,12 @@ class HospitalDashboardView(APIView):
     list=extend_schema(
         tags=["Hospital"],
         summary="Lister les plaintes de l'établissement",
+        responses={403: COMMON_ERRORS[403]},
     ),
     retrieve=extend_schema(
         tags=["Hospital"],
         summary="Détail d'une plainte",
+        responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
     ),
 )
 class HospitalComplaintViewSet(viewsets.ReadOnlyModelViewSet):
@@ -61,7 +66,7 @@ class HospitalComplaintViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Hospital"],
         summary="Changer le statut d'une plainte",
         request=ComplaintStatusUpdateSerializer,
-        responses={200: HospitalStatusHistorySerializer},
+        responses={200: HospitalStatusHistorySerializer, 400: COMMON_ERRORS[400], 404: COMMON_ERRORS[404]},
         examples=[
             OpenApiExample(
                 "Passer en cours",
@@ -82,7 +87,7 @@ class HospitalComplaintViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Hospital"],
         summary="Rejeter une plainte",
         request=ComplaintRejectSerializer,
-        responses={200: HospitalStatusHistorySerializer},
+        responses={200: HospitalStatusHistorySerializer, 400: COMMON_ERRORS[400], 404: COMMON_ERRORS[404]},
         examples=[
             OpenApiExample(
                 "Rejet",

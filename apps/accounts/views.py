@@ -7,6 +7,8 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.common.schema import AUTH_ERRORS
+
 from apps.accounts.models import OTPPurpose
 from apps.accounts.serializers import (
     ChangePasswordSerializer,
@@ -54,7 +56,7 @@ class RegisterView(APIView):
             "Les rôles admin et ministère sont créés par un administrateur."
         ),
         request=RegisterSerializer,
-        responses={201: RegisterResponseSerializer},
+        responses={201: RegisterResponseSerializer, 400: AUTH_ERRORS[400]},
         examples=[
             OpenApiExample(
                 "Inscription",
@@ -128,7 +130,7 @@ class MeView(RetrieveAPIView):
     @extend_schema(
         tags=["Auth"],
         summary="Profil de l'utilisateur connecté",
-        responses={200: UserSerializer},
+        responses={200: UserSerializer, 401: AUTH_ERRORS[401]},
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)

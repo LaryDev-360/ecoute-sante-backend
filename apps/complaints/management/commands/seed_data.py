@@ -12,6 +12,7 @@ from apps.complaints.models import (
     SubmissionType,
     SubmitterProfile,
 )
+from apps.complaints.services import change_complaint_status, reject_complaint
 from apps.facilities.models import Facility, FacilityService, UserFacilityAssignment
 
 DEFAULT_CATEGORIES = [
@@ -28,6 +29,61 @@ DEFAULT_CATEGORIES = [
     ("Autre", "Autres motifs"),
 ]
 
+DEMO_USERS = [
+    {
+        "username": "admin",
+        "email": "admin@sante-ecoute.bj",
+        "password": "admin123",
+        "role": UserRole.ADMIN,
+        "first_name": "Admin",
+        "last_name": "Système",
+    },
+    {
+        "username": "ministry.bj",
+        "email": "ministry@sante-ecoute.bj",
+        "password": "Ministry123!",
+        "role": UserRole.MINISTRY_SUPERVISOR,
+        "first_name": "Superviseur",
+        "last_name": "Ministère",
+    },
+    {
+        "username": "manager.cnhu",
+        "email": "manager.cnhu@cnhu.bj",
+        "password": "Manager123!",
+        "role": UserRole.HOSPITAL_MANAGER,
+        "first_name": "Responsable",
+        "last_name": "CNHU",
+        "facility_code": "CNHU-HKM",
+    },
+    {
+        "username": "manager.suru",
+        "email": "manager.suru@hz.bj",
+        "password": "Manager123!",
+        "role": UserRole.HOSPITAL_MANAGER,
+        "first_name": "Responsable",
+        "last_name": "Suru-Léré",
+        "facility_code": "HZ-SURU",
+    },
+    {
+        "username": "agent.a",
+        "email": "agent.a@cnhu.bj",
+        "password": "Agent123!",
+        "role": UserRole.FACILITY_AGENT,
+        "first_name": "Agent",
+        "last_name": "A",
+        "facility_code": "CNHU-HKM",
+    },
+    {
+        "username": "agent.b",
+        "email": "agent.b@cnhu.bj",
+        "password": "Agent123!",
+        "role": UserRole.FACILITY_AGENT,
+        "first_name": "Agent",
+        "last_name": "B",
+        "facility_code": "CNHU-HKM",
+    },
+]
+
 SAMPLE_COMPLAINTS = [
     {
         "title": "Attente excessive aux urgences",
@@ -38,6 +94,10 @@ SAMPLE_COMPLAINTS = [
         "facility_code": "CNHU-HKM",
         "service_name": "Urgences",
         "category_name": "Temps d'attente",
+        "status_flow": [
+            (ComplaintStatus.UNDER_REVIEW, "Prise en charge par le responsable"),
+            (ComplaintStatus.IN_PROGRESS, "Équipe mobilisée"),
+        ],
     },
     {
         "title": "Accueil déplorable",
@@ -48,6 +108,9 @@ SAMPLE_COMPLAINTS = [
         "facility_code": "HZ-SURU",
         "service_name": "Accueil",
         "category_name": "Mauvais accueil",
+        "status_flow": [
+            (ComplaintStatus.RESOLVED, "Formation du personnel effectuée"),
+        ],
     },
     {
         "title": "Excellente prise en charge",
@@ -58,6 +121,9 @@ SAMPLE_COMPLAINTS = [
         "facility_code": "CNHU-HKM",
         "service_name": "Maternité",
         "category_name": "Félicitation",
+        "status_flow": [
+            (ComplaintStatus.CLOSED, "Remerciements transmis à l'équipe"),
+        ],
     },
     {
         "title": "Comportement irrespectueux d'un collègue",
@@ -71,41 +137,124 @@ SAMPLE_COMPLAINTS = [
         "category_name": "Mauvais accueil",
         "submitter_username": "agent.a",
         "reported_agent_username": "agent.b",
+        "status_flow": [
+            (ComplaintStatus.UNDER_REVIEW, "Enquête interne ouverte"),
+        ],
+    },
+    {
+        "title": "Rupture de stock d'antibiotiques",
+        "description": "Antibiotiques indisponibles à la pharmacie depuis une semaine.",
+        "complaint_type": ComplaintType.COMPLAINT,
+        "severity": Severity.URGENT,
+        "submission_type": SubmissionType.IDENTIFIED,
+        "facility_code": "HDP-PARAKOU",
+        "service_name": "Pharmacie",
+        "category_name": "Rupture de médicaments",
+    },
+    {
+        "title": "Demande de paiement non officiel",
+        "description": "On m'a demandé 5000 FCFA pour accélérer la consultation.",
+        "complaint_type": ComplaintType.COMPLAINT,
+        "severity": Severity.HIGH,
+        "submission_type": SubmissionType.IDENTIFIED,
+        "facility_code": "CS-PORTO",
+        "service_name": "Consultation",
+        "category_name": "Corruption",
+        "status_flow": [
+            (ComplaintStatus.REJECTED, "Plainte non étayée — éléments insuffisants"),
+        ],
+        "reject": True,
+    },
+    {
+        "title": "Améliorer la signalétique",
+        "description": "Proposer des panneaux directionnels dans les couloirs.",
+        "complaint_type": ComplaintType.SUGGESTION,
+        "severity": Severity.LOW,
+        "submission_type": SubmissionType.IDENTIFIED,
+        "facility_code": "CNHU-HKM",
+        "service_name": "Accueil",
+        "category_name": "Suggestion",
+        "status_flow": [
+            (ComplaintStatus.WAITING_INFO, "Besoin de précisions sur les emplacements"),
+        ],
+    },
+    {
+        "title": "Locaux insalubres aux toilettes",
+        "description": "Toilettes publiques très sales, absence de savon.",
+        "complaint_type": ComplaintType.COMPLAINT,
+        "severity": Severity.MEDIUM,
+        "submission_type": SubmissionType.ANONYMOUS,
+        "facility_code": "HZ-SURU",
+        "service_name": "Hospitalisation",
+        "category_name": "Hygiène",
     },
 ]
 
 
 class Command(BaseCommand):
-    help = "Seed complaint categories and sample complaints (Benin demo data)"
+    help = "Seed demo users, complaint categories, and sample complaints (Benin)"
 
     def handle(self, *args, **options):
-        categories_created = 0
+        categories_created = self._seed_categories()
+        users_created = self._seed_users()
+        complaints_created = self._seed_complaints()
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Seed terminé : {ComplaintCategory.objects.count()} catégories "
+                f"({categories_created} créées), "
+                f"{User.objects.count()} utilisateurs ({users_created} créés), "
+                f"{Complaint.objects.count()} plaintes ({complaints_created} créées)."
+            )
+        )
+        self.stdout.write(
+            self.style.WARNING(
+                "Comptes démo : admin/admin123, ministry.bj/Ministry123!, "
+                "manager.cnhu/Manager123!, agent.a/Agent123!"
+            )
+        )
+
+    def _seed_categories(self) -> int:
+        created = 0
         for name, description in DEFAULT_CATEGORIES:
-            _, created = ComplaintCategory.objects.get_or_create(
+            _, was_created = ComplaintCategory.objects.get_or_create(
                 name=name,
                 defaults={"description": description},
             )
-            if created:
-                categories_created += 1
+            if was_created:
+                created += 1
+        return created
 
-        complaints_created = 0
-        cnhu = Facility.objects.filter(code="CNHU-HKM").first()
-        if cnhu:
-            for username in ("agent.a", "agent.b"):
-                agent, created = User.objects.get_or_create(
-                    username=username,
-                    defaults={
-                        "email": f"{username}@cnhu.bj",
-                        "role": UserRole.FACILITY_AGENT,
-                    },
-                )
-                if created:
-                    agent.set_password("Agent123!")
-                    agent.save()
-                UserFacilityAssignment.objects.update_or_create(
-                    user=agent,
-                    defaults={"facility": cnhu},
-                )
+    def _seed_users(self) -> int:
+        created = 0
+        for spec in DEMO_USERS:
+            user, was_created = User.objects.get_or_create(
+                username=spec["username"],
+                defaults={
+                    "email": spec["email"],
+                    "role": spec["role"],
+                    "first_name": spec.get("first_name", ""),
+                    "last_name": spec.get("last_name", ""),
+                },
+            )
+            if was_created:
+                user.set_password(spec["password"])
+                user.save()
+                created += 1
+
+            facility_code = spec.get("facility_code")
+            if facility_code:
+                facility = Facility.objects.filter(code=facility_code).first()
+                if facility:
+                    UserFacilityAssignment.objects.update_or_create(
+                        user=user,
+                        defaults={"facility": facility},
+                    )
+        return created
+
+    def _seed_complaints(self) -> int:
+        created = 0
+        manager_by_facility = {}
 
         for sample in SAMPLE_COMPLAINTS:
             facility = Facility.objects.filter(code=sample["facility_code"]).first()
@@ -120,11 +269,7 @@ class Command(BaseCommand):
             if not service or not category:
                 continue
 
-            exists = Complaint.objects.filter(
-                title=sample["title"],
-                facility=facility,
-            ).exists()
-            if exists:
+            if Complaint.objects.filter(title=sample["title"], facility=facility).exists():
                 continue
 
             submitter = None
@@ -136,7 +281,7 @@ class Command(BaseCommand):
                     username=sample["reported_agent_username"]
                 ).first()
 
-            Complaint.objects.create(
+            complaint = Complaint.objects.create(
                 submitter_profile=sample.get("submitter_profile", SubmitterProfile.CITIZEN),
                 submission_type=sample["submission_type"],
                 complaint_type=sample["complaint_type"],
@@ -153,12 +298,18 @@ class Command(BaseCommand):
                 phone="+22997000001",
                 email="citoyen@example.bj",
             )
-            complaints_created += 1
+            created += 1
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Seed terminé : {ComplaintCategory.objects.count()} catégories "
-                f"({categories_created} créées), "
-                f"{Complaint.objects.count()} plaintes ({complaints_created} créées)."
-            )
-        )
+            manager = manager_by_facility.get(facility.code)
+            if not manager:
+                assignment = UserFacilityAssignment.objects.filter(facility=facility).first()
+                manager = assignment.user if assignment else None
+                manager_by_facility[facility.code] = manager
+
+            for new_status, reason in sample.get("status_flow", []):
+                if sample.get("reject"):
+                    reject_complaint(complaint, manager, reason)
+                else:
+                    change_complaint_status(complaint, new_status, manager, reason)
+
+        return created
