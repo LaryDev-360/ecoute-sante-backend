@@ -66,12 +66,34 @@ python manage.py runserver
 
 En développement, les codes OTP sont affichés dans la console du serveur (`EMAIL_BACKEND=console`).
 
+### Seed données de test
+
+```bash
+python manage.py seed_facilities
+```
+
+### Établissements (API)
+
+| Méthode | Route | Accès |
+|---------|-------|-------|
+| `GET/POST` | `/api/v1/facilities/` | Liste / création |
+| `GET/PATCH/DELETE` | `/api/v1/facilities/{id}/` | Détail / mise à jour / désactivation |
+| `POST` | `/api/v1/facilities/import/` | Import JSON en masse |
+| `POST` | `/api/v1/facilities/import/csv/` | Import CSV (`file`) |
+| `GET/POST` | `/api/v1/facilities/{id}/services/` | Services d'un établissement |
+| `GET/PATCH/DELETE` | `/api/v1/facilities/{id}/services/{sid}/` | Gestion d'un service |
+| `GET/POST/DELETE` | `/api/v1/assignments/` | Affectations responsable ↔ établissement |
+
+**Règles :** admin/ministère gèrent tout ; un responsable sans affectation peut créer/importer un établissement (rattachement auto) ; un responsable affecté gère uniquement le sien.
+
 ## Structure
 
 ```text
 config/          # Settings, URLs, WSGI/ASGI
 apps/
   common/        # Utilitaires partagés (pagination, permissions, exceptions)
+  accounts/      # Utilisateurs, auth JWT, OTP
+  facilities/    # Établissements sanitaires, services, affectations
 requirements/    # Dépendances (base, dev, prod)
 ```
 

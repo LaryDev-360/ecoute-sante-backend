@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     # Local apps
     "apps.common",
     "apps.accounts",
+    "apps.facilities",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -79,7 +80,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "fr-fr"
-TIME_ZONE = "Africa/Abidjan"
+TIME_ZONE = "Africa/Porto-Novo"
 USE_I18N = True
 USE_TZ = True
 
