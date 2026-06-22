@@ -1,11 +1,16 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
+from apps.complaints.hospital_views import HospitalComplaintViewSet, HospitalDashboardView
 from apps.complaints.views import (
     ComplaintCategoryListView,
     ComplaintSubmitView,
     ComplaintTrackView,
     SubmitterProfileListView,
 )
+
+router = DefaultRouter()
+router.register("hospital/complaints", HospitalComplaintViewSet, basename="hospital-complaint")
 
 app_name = "complaints"
 
@@ -26,4 +31,6 @@ urlpatterns = [
         ComplaintCategoryListView.as_view(),
         name="complaint-categories",
     ),
+    path("hospital/dashboard/", HospitalDashboardView.as_view(), name="hospital-dashboard"),
+    path("", include(router.urls)),
 ]

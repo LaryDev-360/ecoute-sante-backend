@@ -155,6 +155,29 @@ def record_status_change(
     return history
 
 
+def reject_complaint(complaint: Complaint, changed_by, reason: str) -> ComplaintStatusHistory:
+    """Rejette une plainte avec motif obligatoire."""
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValueError("Le motif de rejet est obligatoire.")
+    return record_status_change(
+        complaint,
+        ComplaintStatus.REJECTED,
+        changed_by=changed_by,
+        reason=reason,
+    )
+
+
+def change_complaint_status(
+    complaint: Complaint,
+    new_status: str,
+    changed_by=None,
+    reason: str = "",
+) -> ComplaintStatusHistory:
+    """Alias métier pour record_status_change."""
+    return record_status_change(complaint, new_status, changed_by, reason)
+
+
 def record_initial_status(complaint: Complaint) -> ComplaintStatusHistory:
     """Crée la première entrée d'historique à l'ouverture d'une plainte."""
     return ComplaintStatusHistory.objects.create(

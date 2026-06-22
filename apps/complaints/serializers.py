@@ -5,6 +5,7 @@ from apps.complaints.models import (
     Complaint,
     ComplaintAttachment,
     ComplaintCategory,
+    ComplaintComment,
     ComplaintStatus,
     ComplaintStatusHistory,
     ComplaintType,
@@ -14,6 +15,8 @@ from apps.complaints.models import (
 from apps.complaints.services import (
     ComplaintValidationError,
     apply_submitter_context,
+    change_complaint_status,
+    reject_complaint,
     validate_complaint_submission,
 )
 from apps.facilities.models import Facility, FacilityService
@@ -200,3 +203,161 @@ SUBMITTER_PROFILE_META = [
         "allows_reported_agent": True,
     },
 ]
+
+
+# --- Hospital API ---
+
+
+class HospitalComplaintListSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    facility_name = serializers.CharField(source="facility.name", read_only=True)
+
+    class Meta:
+        model = Complaint
+        fields = (
+            "id",
+            "reference",
+            "title",
+            "submitter_profile",
+            "submission_type",
+            "complaint_type",
+            "current_status",
+            "severity",
+            "category_name",
+            "service_name",
+            "facility_name",
+            "created_at",
+            "updated_at",
+        )
+
+
+class HospitalStatusHistorySerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComplaintStatusHistory
+        fields = (
+            "id",
+            "old_status",
+            "new_status",
+            "changed_by_name",
+            "reason",
+            "created_at",
+        )
+
+    def get_changed_by_name(self, obj):
+        if obj.changed_by:
+            return obj.changed_by.get_full_name() or obj.changed_by.username
+        return None
+
+
+class HospitalCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComplaintComment
+        fields = ("id", "author_name", "comment", "created_at")
+
+    def get_author_name(self, obj):
+        if obj.author:
+            return obj.author.get_full_name() or obj.author.username
+        return None
+
+
+class HospitalComplaintDetailSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    facility_name = serializers.CharField(source="facility.name", read_only=True)
+    submitted_by_name = serializers.SerializerMethodField()
+    reported_agent_name_display = serializers.SerializerMethodField()
+    attachments = ComplaintAttachmentResponseSerializer(many=True, read_only=True)
+    comments = HospitalCommentSerializer(many=True, read_only=True)
+    status_history = HospitalStatusHistorySerializer(many=True, read_only=True)
+    contact = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Complaint
+        fields = (
+            "id",
+            "reference",
+            "submitter_profile",
+            "submission_type",
+            "complaint_type",
+            "title",
+            "description",
+            "incident_date",
+            "severity",
+            "current_status",
+            "category_name",
+            "service_name",
+            "facility_name",
+            "submitted_by_name",
+            "reported_agent_name_display",
+            "contact",
+            "created_at",
+            "updated_at",
+            "attachments",
+            "comments",
+            "status_history",
+        )
+
+    def get_submitted_by_name(self, obj):
+        if obj.submitted_by:
+            return obj.submitted_by.get_full_name() or obj.submitted_by.username
+        return None
+
+    def get_reported_agent_name_display(self, obj):
+        if obj.reported_agent:
+            return obj.reported_agent.get_full_name() or obj.reported_agent.username
+        return obj.reported_agent_name or None
+
+    def get_contact(self, obj):
+        if obj.submission_type == SubmissionType.ANONYMOUS:
+            return None
+        return {
+            "phone": obj.phone,
+            "email": obj.email,
+            "preferred_contact_method": obj.preferred_contact_method,
+        }
+
+
+class ComplaintStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ComplaintStatus.choices)
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def save(self, complaint, user):
+        try:
+            return change_complaint_status(
+                complaint,
+                self.validated_data["status"],
+                changed_by=user,
+                reason=self.validated_data.get("reason", ""),
+            )
+        except ValueError as exc:
+            raise serializers.ValidationError({"status": str(exc)}) from exc
+
+
+class ComplaintRejectSerializer(serializers.Serializer):
+    reason = serializers.CharField(min_length=3)
+
+    def save(self, complaint, user):
+        try:
+            return reject_complaint(complaint, user, self.validated_data["reason"])
+        except ValueError as exc:
+            raise serializers.ValidationError({"reason": str(exc)}) from exc
+
+
+class ComplaintCommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComplaintComment
+        fields = ("comment",)
+
+    def create(self, validated_data):
+        complaint = self.context["complaint"]
+        user = self.context["request"].user
+        return ComplaintComment.objects.create(
+            complaint=complaint,
+            author=user,
+            **validated_data,
+        )

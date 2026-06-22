@@ -102,6 +102,17 @@ python manage.py test --settings=config.settings.test
 | `GET` | `/api/v1/complaints/categories/` | Catégories actives |
 | `GET` | `/api/v1/complaints/meta/submitter-profiles/` | Profils déclarant (usager / agent) |
 
+### API hôpital (Phase 5)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/api/v1/hospital/dashboard/` | KPIs établissement |
+| `GET` | `/api/v1/hospital/complaints/` | Liste (filtres : status, category, service, severity, dates) |
+| `GET` | `/api/v1/hospital/complaints/{id}/` | Détail + historique + commentaires |
+| `PATCH` | `/api/v1/hospital/complaints/{id}/status/` | Changer le statut |
+| `PATCH` | `/api/v1/hospital/complaints/{id}/reject/` | Rejeter (motif obligatoire) |
+| `POST` | `/api/v1/hospital/complaints/{id}/comments/` | Commentaire interne |
+
 ## Structure
 
 ```text
