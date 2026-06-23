@@ -53,6 +53,60 @@ paths:
           description: Service temporairement indisponible.
         '504':
           description: Délai dépassé lors de l'appel au service externe.
+  /api/v1/ai/mediateur/:
+    post:
+      operationId: v1_ai_mediateur_create
+      description: 'Transcrit et structure un message vocal de patient. Accepte un
+        fichier audio (`multipart/form-data`, champ `audio`) ou un audio encodé en
+        base64 (`application/json`, champ `audio_base64`). Formats : ogg, mp3, wav,
+        webm.'
+      summary: Médiation vocale (Gbègbe)
+      tags:
+      - AI
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+            examples:
+              AudioBase64(JSON):
+                value:
+                  audio_base64: <base64>
+                  format: ogg
+                summary: Audio base64 (JSON)
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GbegbeResponse'
+              examples:
+                SignalementStructuré:
+                  value:
+                    langue_detectee: fon
+                    transcription_fr: J'ai attendu trois heures aux urgences sans
+                      être reçu.
+                    type: plainte
+                    service: urgences
+                    gravite: urgent
+                    resume: Patient non pris en charge après une longue attente aux
+                      urgences.
+                  summary: Signalement structuré
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '503':
+          description: Service temporairement indisponible.
+        '504':
+          description: Délai dépassé lors de l'appel au service externe.
   /api/v1/assignments/:
     get:
       operationId: v1_assignments_list
@@ -1782,6 +1836,73 @@ components:
           description: E-mail, nom d'utilisateur ou numéro de téléphone
       required:
       - identifier
+    FormatEnum:
+      enum:
+      - ogg
+      - mp3
+      - wav
+      - webm
+      type: string
+      description: |-
+        * `ogg` - ogg
+        * `mp3` - mp3
+        * `wav` - wav
+        * `webm` - webm
+    GbegbeRequest:
+      type: object
+      description: |-
+        Accepte l'audio de deux façons :
+        - multipart/form-data : champ `audio` (fichier) + `format` optionnel
+        - application/json : `audio_base64` + `format` (par défaut « ogg »)
+        Produit un `validated_data` normalisé avec `audio_base64` et `format`.
+      properties:
+        audio:
+          type: string
+          format: uri
+          writeOnly: true
+          description: 'Fichier audio (multipart). Formats : ogg, mp3, wav, webm.'
+        audio_base64:
+          type: string
+          writeOnly: true
+          description: Audio encodé en base64 (mode JSON).
+        format:
+          allOf:
+          - $ref: '#/components/schemas/FormatEnum'
+          description: |-
+            Format de l'audio (ogg, mp3, wav, webm).
+
+            * `ogg` - ogg
+            * `mp3` - mp3
+            * `wav` - wav
+            * `webm` - webm
+    GbegbeResponse:
+      type: object
+      properties:
+        langue_detectee:
+          type: string
+          description: Langue détectée (fon, yoruba ou français).
+        transcription_fr:
+          type: string
+          description: Transcription fidèle en français.
+        type:
+          type: string
+          description: plainte, suggestion ou felicitation.
+        service:
+          type: string
+          description: urgences, consultation, pharmacie ou autre.
+        gravite:
+          type: string
+          description: faible, moyen ou urgent.
+        resume:
+          type: string
+          description: Résumé synthétique du signalement.
+      required:
+      - gravite
+      - langue_detectee
+      - resume
+      - service
+      - transcription_fr
+      - type
     HospitalComment:
       type: object
       properties:
