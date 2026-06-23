@@ -14,7 +14,7 @@ class OpenRouterError(Exception):
         super().__init__(message)
 
 
-def chat_completion(messages: list[dict], *, timeout: float | None = None) -> str:
+def chat_completion(messages: list[dict], *, timeout: float | None = None, model: str | None = None) -> str:
     """
     Appelle l'API OpenRouter chat/completions et retourne le contenu texte.
     """
@@ -28,7 +28,7 @@ def chat_completion(messages: list[dict], *, timeout: float | None = None) -> st
 
     timeout = timeout if timeout is not None else settings.OPENROUTER_TIMEOUT
     payload = {
-        "model": settings.OPENROUTER_MODEL,
+        "model": model or settings.OPENROUTER_MODEL,
         "messages": messages,
         "temperature": 0.2,
     }

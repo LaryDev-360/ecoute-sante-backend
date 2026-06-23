@@ -8,6 +8,13 @@ from apps.complaints.ministry_views import (
     MinistryComplaintViewSet,
     MinistryDashboardView,
 )
+from apps.complaints.import_views import (
+    ComplaintOCRExtractView,
+    HospitalComplaintCSVImportView,
+    HospitalComplaintImportCreateView,
+    MinistryComplaintCSVImportView,
+    MinistryComplaintImportCreateView,
+)
 from apps.complaints.views import (
     ComplaintCategoryListView,
     ComplaintSubmitView,
@@ -45,12 +52,37 @@ urlpatterns = [
         name="complaint-facilities",
     ),
     path("hospital/dashboard/", HospitalDashboardView.as_view(), name="hospital-dashboard"),
+    path(
+        "hospital/complaints/import/csv/",
+        HospitalComplaintCSVImportView.as_view(),
+        name="hospital-complaints-import-csv",
+    ),
+    path(
+        "hospital/complaints/import/",
+        HospitalComplaintImportCreateView.as_view(),
+        name="hospital-complaints-import",
+    ),
+    path(
+        "complaints/import/ocr/",
+        ComplaintOCRExtractView.as_view(),
+        name="complaint-import-ocr",
+    ),
     path("ministry/dashboard/", MinistryDashboardView.as_view(), name="ministry-dashboard"),
     path("ministry/analytics/", MinistryAnalyticsView.as_view(), name="ministry-analytics"),
     path(
         "ministry/complaints/export/",
         MinistryComplaintExportView.as_view(),
         name="ministry-complaints-export",
+    ),
+    path(
+        "ministry/complaints/import/csv/",
+        MinistryComplaintCSVImportView.as_view(),
+        name="ministry-complaints-import-csv",
+    ),
+    path(
+        "ministry/complaints/import/",
+        MinistryComplaintImportCreateView.as_view(),
+        name="ministry-complaints-import",
     ),
     path("", include(router.urls)),
 ]

@@ -278,6 +278,8 @@ class HospitalComplaintListSerializer(serializers.ModelSerializer):
             "facility_name",
             "facility_code",
             "facility_region",
+            "source",
+            "registered_on_paper_at",
             "created_at",
             "updated_at",
         )
@@ -349,6 +351,8 @@ class HospitalComplaintDetailSerializer(serializers.ModelSerializer):
             "submitted_by_name",
             "reported_agent_name_display",
             "contact",
+            "source",
+            "registered_on_paper_at",
             "created_at",
             "updated_at",
             "attachments",

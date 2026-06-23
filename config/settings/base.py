@@ -155,6 +155,7 @@ REST_FRAMEWORK = {
 # OpenRouter (classification IA — Phase 8)
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
 OPENROUTER_MODEL = env("OPENROUTER_MODEL", default="openrouter/free")
+OPENROUTER_VISION_MODEL = env("OPENROUTER_VISION_MODEL", default="google/gemini-2.0-flash-exp:free")
 OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
 OPENROUTER_TIMEOUT = env.int("OPENROUTER_TIMEOUT", default=15)
 OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="Santé Écoute")
