@@ -12,6 +12,7 @@ from apps.accounts.user_serializers import (
     StaffUserUpdateSerializer,
 )
 from apps.accounts.user_services import (
+    HOSPITAL_CREATABLE_ROLES,
     create_staff_user,
     get_hospital_users_queryset,
     get_ministry_users_queryset,
@@ -47,6 +48,26 @@ def _validation_error_response(exc: ValueError) -> Response:
     )
 
 
+def _create_response(user, initial_password: str, email_sent: bool, *, role_label: str) -> dict:
+    if email_sent:
+        message = (
+            f"Compte {role_label} créé. Un e-mail avec les identifiants "
+            f"a été envoyé à {user.email}."
+        )
+    else:
+        message = (
+            f"Compte {role_label} créé, mais l'e-mail n'a pas pu être envoyé. "
+            "Communiquez le mot de passe initial à l'utilisateur "
+            "(il ne sera plus affiché)."
+        )
+    return {
+        "user": StaffUserSerializer(user).data,
+        "initial_password": initial_password,
+        "email_sent": email_sent,
+        "message": message,
+    }
+
+
 class MinistryUserListCreateView(ListCreateAPIView):
     permission_classes = [IsMinistryOrAdmin]
     serializer_class = StaffUserSerializer
@@ -80,7 +101,7 @@ class MinistryUserListCreateView(ListCreateAPIView):
             )
 
         try:
-            user, initial_password = create_staff_user(
+            user, initial_password, email_sent = create_staff_user(
                 actor=request.user,
                 role=role,
                 username=data["username"],
@@ -94,15 +115,11 @@ class MinistryUserListCreateView(ListCreateAPIView):
         except ValueError as exc:
             return _validation_error_response(exc)
 
-        payload = {
-            "user": StaffUserSerializer(user).data,
-            "initial_password": initial_password,
-            "message": (
-                "Compte créé. Communiquez le mot de passe initial à l'utilisateur "
-                "(il ne sera plus affiché)."
-            ),
-        }
-        return Response(payload, status=status.HTTP_201_CREATED)
+        role_label = dict(UserRole.choices).get(role, role)
+        return Response(
+            _create_response(user, initial_password, email_sent, role_label=role_label),
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class MinistryUserDetailView(RetrieveUpdateAPIView):
@@ -193,10 +210,17 @@ class HospitalUserListCreateView(ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        role = data.get("role", UserRole.FACILITY_AGENT)
+        if role not in HOSPITAL_CREATABLE_ROLES:
+            return Response(
+                {"success": False, "error": {"role": "Rôle non autorisé."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
-            user, initial_password = create_staff_user(
+            user, initial_password, email_sent = create_staff_user(
                 actor=request.user,
-                role=UserRole.FACILITY_AGENT,
+                role=role,
                 username=data["username"],
                 email=data["email"],
                 password=data.get("password") or None,
@@ -208,15 +232,11 @@ class HospitalUserListCreateView(ListCreateAPIView):
         except ValueError as exc:
             return _validation_error_response(exc)
 
-        payload = {
-            "user": StaffUserSerializer(user).data,
-            "initial_password": initial_password,
-            "message": (
-                "Agent créé. Communiquez le mot de passe initial "
-                "(il ne sera plus affiché)."
-            ),
-        }
-        return Response(payload, status=status.HTTP_201_CREATED)
+        role_label = dict(UserRole.choices).get(role, role)
+        return Response(
+            _create_response(user, initial_password, email_sent, role_label=role_label),
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class HospitalUserDetailView(RetrieveUpdateAPIView):

@@ -116,6 +116,7 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CORS_ALLOW_CREDENTIALS = True
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@sante-ecoute.bj")
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend",

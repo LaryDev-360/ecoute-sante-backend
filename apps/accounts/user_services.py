@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 
 from apps.accounts.models import User, UserRole
+from apps.accounts.services.notifications import send_staff_welcome_email
 from apps.audit.services import log_user_created, log_user_deactivated, log_user_updated
 from apps.facilities.models import Facility, UserFacilityAssignment
 from apps.facilities.services import assign_manager_to_facility, get_user_facility
@@ -16,6 +17,8 @@ MINISTRY_MANAGED_ROLES = (
 )
 
 FACILITY_BOUND_ROLES = (UserRole.HOSPITAL_MANAGER, UserRole.FACILITY_AGENT)
+
+HOSPITAL_CREATABLE_ROLES = (UserRole.FACILITY_AGENT, UserRole.HOSPITAL_MANAGER)
 
 
 def generate_temporary_password(length: int = 12) -> str:
@@ -37,7 +40,7 @@ def get_hospital_users_queryset(actor: User):
         return User.objects.none()
     return (
         User.objects.filter(
-            role=UserRole.FACILITY_AGENT,
+            role__in=HOSPITAL_CREATABLE_ROLES,
             facility_assignment__facility=facility,
         )
         .select_related("facility_assignment__facility")
@@ -64,7 +67,7 @@ def ministry_can_manage_user(actor: User, target: User) -> bool:
 def hospital_can_manage_user(actor: User, target: User) -> bool:
     if actor.role != UserRole.HOSPITAL_MANAGER:
         return False
-    if target.role != UserRole.FACILITY_AGENT:
+    if target.role not in HOSPITAL_CREATABLE_ROLES:
         return False
     facility = get_user_facility(actor)
     return facility is not None and user_belongs_to_facility(target, facility)
@@ -95,7 +98,7 @@ def create_staff_user(
     first_name: str = "",
     last_name: str = "",
     facility: Facility | None = None,
-) -> tuple[User, str]:
+) -> tuple[User, str, bool]:
     attrs = {
         "username": username.strip(),
         "email": email.strip().lower(),
@@ -125,8 +128,15 @@ def create_staff_user(
     if facility is not None:
         assign_manager_to_facility(user, facility)
 
+    email_sent = send_staff_welcome_email(
+        user=user,
+        password=initial_password,
+        created_by=actor,
+        facility_name=facility.name if facility else None,
+    )
+
     log_user_created(user, actor=actor, facility=facility)
-    return user, initial_password
+    return user, initial_password, email_sent
 
 
 @transaction.atomic

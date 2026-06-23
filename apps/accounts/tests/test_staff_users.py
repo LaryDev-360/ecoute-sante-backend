@@ -1,3 +1,5 @@
+from django.core import mail
+
 from apps.accounts.models import UserRole
 from apps.audit.models import AuditAction, AuditLog
 from apps.common.tests.base import BaseAPITestCase
@@ -43,6 +45,9 @@ class StaffUserAPITests(BaseAPITestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertIn("initial_password", data)
+        self.assertTrue(data["email_sent"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("new.manager", mail.outbox[0].body)
         self.assertEqual(data["user"]["username"], "new.manager")
         self.assertEqual(data["user"]["facility"]["code"], "HZ-USER-B")
         self.assertTrue(
@@ -53,19 +58,46 @@ class StaffUserAPITests(BaseAPITestCase):
         )
 
     def test_manager_creates_agent(self):
+        mail.outbox.clear()
         self.auth_as(self.manager_a)
         response = self.client.post(
             "/api/v1/hospital/users/",
             {
                 "username": "agent.new",
                 "email": "agent.new@test.bj",
+                "role": UserRole.FACILITY_AGENT,
                 "first_name": "Agent",
                 "last_name": "Test",
             },
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["user"]["role"], UserRole.FACILITY_AGENT)
+        data = response.json()
+        self.assertEqual(data["user"]["role"], UserRole.FACILITY_AGENT)
+        self.assertTrue(data["email_sent"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("agent.new", mail.outbox[0].body)
+
+    def test_manager_creates_co_manager(self):
+        mail.outbox.clear()
+        self.auth_as(self.manager_a)
+        response = self.client.post(
+            "/api/v1/hospital/users/",
+            {
+                "username": "manager.co",
+                "email": "manager.co@test.bj",
+                "role": UserRole.HOSPITAL_MANAGER,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["user"]["role"], UserRole.HOSPITAL_MANAGER)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditAction.USER_CREATED,
+                resource_id=str(response.json()["user"]["id"]),
+            ).exists()
+        )
 
     def test_manager_cannot_list_other_facility_via_hospital_api(self):
         self.auth_as(self.manager_a)

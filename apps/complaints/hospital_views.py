@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 
 from apps.common.schema import COMMON_ERRORS
 
-from apps.complaints.export import complaint_detail_queryset, export_complaint_detail_csv
+from apps.complaints.export import complaint_detail_queryset, export_complaint_detail_pdf
 from apps.complaints.models import Complaint
 from apps.complaints.filters import HospitalComplaintFilter
 from apps.complaints.hospital_services import build_hospital_dashboard, get_hospital_complaints_queryset
@@ -72,13 +72,13 @@ class HospitalComplaintViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         tags=["Hospital"],
-        summary="Exporter un dossier en CSV",
+        summary="Exporter un dossier en PDF",
         responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
     )
     @action(detail=True, methods=["get"], url_path="export")
     def export(self, request, pk=None):
         complaint = self.get_object()
-        return export_complaint_detail_csv(complaint)
+        return export_complaint_detail_pdf(complaint)
 
     @extend_schema(
         tags=["Hospital"],

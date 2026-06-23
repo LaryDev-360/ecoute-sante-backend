@@ -164,18 +164,19 @@ class HospitalComplaintAPITests(BaseAPITestCase):
         )
         self.assertEqual(response.json()["count"], 1)
 
-    def test_hospital_complaint_csv_export(self):
+    def test_hospital_complaint_pdf_export(self):
         self.auth_as(self.manager)
         response = self.client.get(
             f"/api/v1/hospital/complaints/{self.complaint_a.id}/export/"
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
-        content = response.content.decode("utf-8")
-        self.assertIn(self.complaint_a.reference, content)
-        self.assertIn("Description", content)
-        self.assertIn("Plainte A", content)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(
+            f'filename="{self.complaint_a.reference}.pdf"',
+            response["Content-Disposition"],
+        )
 
     def test_hospital_complaint_export_denied_other_facility(self):
         self.auth_as(self.other_manager)

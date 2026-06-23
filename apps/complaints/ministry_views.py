@@ -15,7 +15,7 @@ from apps.complaints.filters import MinistryComplaintFilter
 from apps.complaints.permissions import MinistryPermission
 from apps.complaints.export import (
     complaint_detail_queryset,
-    export_complaint_detail_csv,
+    export_complaint_detail_pdf,
     export_complaints_csv,
 )
 from apps.complaints.serializers import (
@@ -91,13 +91,13 @@ class MinistryComplaintViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         tags=["Ministry"],
-        summary="Exporter un dossier en CSV",
+        summary="Exporter un dossier en PDF",
         responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
     )
     @action(detail=True, methods=["get"], url_path="export")
     def export(self, request, pk=None):
         complaint = self.get_object()
-        return export_complaint_detail_csv(complaint)
+        return export_complaint_detail_pdf(complaint)
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("export") == "csv":

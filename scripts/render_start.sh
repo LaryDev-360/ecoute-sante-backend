@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Runs migrations then starts Gunicorn (Render web service).
-# Ensures Neon/Postgres schema exists even if preDeployCommand was not configured.
 set -o errexit
 
-echo "Applying database migrations..."
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "ERROR: DATABASE_URL is not set."
+  exit 1
+fi
+
+echo "Applying database migrations (start)..."
 python manage.py migrate --noinput
+python manage.py db_status
 
 echo "Starting gunicorn on port ${PORT}..."
 exec gunicorn config.wsgi:application \

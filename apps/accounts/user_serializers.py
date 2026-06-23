@@ -46,6 +46,7 @@ class StaffUserSerializer(serializers.ModelSerializer):
 class StaffUserCreateResponseSerializer(serializers.Serializer):
     user = StaffUserSerializer()
     initial_password = serializers.CharField()
+    email_sent = serializers.BooleanField()
     message = serializers.CharField()
 
 
@@ -82,6 +83,13 @@ class MinistryUserCreateSerializer(serializers.Serializer):
 class HospitalUserCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
+    role = serializers.ChoiceField(
+        choices=[
+            (UserRole.FACILITY_AGENT, UserRole.FACILITY_AGENT.label),
+            (UserRole.HOSPITAL_MANAGER, UserRole.HOSPITAL_MANAGER.label),
+        ],
+        default=UserRole.FACILITY_AGENT,
+    )
     password = serializers.CharField(min_length=8, required=False, allow_blank=True, write_only=True)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
     first_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")

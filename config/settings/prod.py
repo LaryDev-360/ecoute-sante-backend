@@ -2,7 +2,12 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 
-# Render terminates TLS at the edge; trust X-Forwarded-Proto for HTTPS redirects.
+# DATABASE_URL is required in production (Neon PostgreSQL).
+if not env("DATABASE_URL", default=""):  # noqa: F405
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("DATABASE_URL must be set in production.")
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")  # noqa: F405
