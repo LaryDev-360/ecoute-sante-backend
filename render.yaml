@@ -13,7 +13,7 @@ services:
     region: frankfurt
     branch: main
     buildCommand: ./scripts/render_build.sh
-    preDeployCommand: python manage.py migrate --noinput
+    preDeployCommand: ./scripts/render_migrate.sh
     startCommand: ./scripts/render_start.sh
     healthCheckPath: /api/v1/health/
     envVars:

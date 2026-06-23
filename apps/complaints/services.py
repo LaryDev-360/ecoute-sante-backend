@@ -164,6 +164,15 @@ def record_status_change(
             reason=reason,
         )
 
+    from apps.complaints.notifications import notify_complainant_status_change
+
+    notify_complainant_status_change(
+        complaint,
+        old_status=old_status,
+        new_status=new_status,
+        reason=reason,
+    )
+
     return history
 
 
