@@ -152,6 +152,12 @@ OPENROUTER_TIMEOUT = env.int("OPENROUTER_TIMEOUT", default=15)
 OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="Santé Écoute")
 OPENROUTER_APP_URL = env("OPENROUTER_APP_URL", default="http://localhost:8000")
 
+# Mistral (médiateur vocal Gbègbe — modèle audio Voxtral)
+MISTRAL_API_KEY = env("MISTRAL_API_KEY", default="")
+MISTRAL_MODEL = env("MISTRAL_MODEL", default="voxtral-small-latest")
+MISTRAL_BASE_URL = env("MISTRAL_BASE_URL", default="https://api.mistral.ai/v1")
+MISTRAL_TIMEOUT = env.int("MISTRAL_TIMEOUT", default=30)
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
