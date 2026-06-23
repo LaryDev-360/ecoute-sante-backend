@@ -1,9 +1,16 @@
 import base64
 import binascii
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.ai.services.mediateur import SUPPORTED_FORMATS
+
+
+@extend_schema_field(OpenApiTypes.BINARY)
+class BinaryFileField(serializers.FileField):
+    """FileField rendu en `format: binary` → sélecteur de fichier dans Swagger."""
 
 _FORMAT_BY_EXTENSION = {
     "ogg": "ogg",
@@ -92,6 +99,30 @@ class GbegbeRequestSerializer(serializers.Serializer):
                 )
 
         return {"audio_base64": encoded, "format": audio_format}
+
+
+class GbegbeUploadSerializer(serializers.Serializer):
+    """Schéma multipart (documentation) — rend un sélecteur de fichier dans Swagger."""
+
+    audio = BinaryFileField(
+        help_text="Fichier audio à téléverser (ogg, mp3, wav, webm).",
+    )
+    format = serializers.ChoiceField(
+        choices=SUPPORTED_FORMATS,
+        required=False,
+        help_text="Optionnel : déduit de l'extension du fichier si absent.",
+    )
+
+
+class GbegbeBase64Serializer(serializers.Serializer):
+    """Schéma JSON (documentation) — audio encodé en base64."""
+
+    audio_base64 = serializers.CharField(help_text="Audio encodé en base64.")
+    format = serializers.ChoiceField(
+        choices=SUPPORTED_FORMATS,
+        required=False,
+        help_text="Format de l'audio (par défaut « ogg »).",
+    )
 
 
 class GbegbeResponseSerializer(serializers.Serializer):

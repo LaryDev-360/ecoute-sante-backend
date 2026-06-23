@@ -1,0 +1,2431 @@
+openapi: 3.0.3
+info:
+  title: Santé Écoute API
+  version: 1.0.0
+  description: API de gestion des signalements et plaintes sanitaires
+paths:
+  /api/v1/ai/classify/:
+    post:
+      operationId: v1_ai_classify_create
+      description: Appelle un modèle gratuit via OpenRouter pour suggérer une catégorie
+        et une priorité. **Résultat indicatif uniquement** — le frontend doit laisser
+        l'utilisateur confirmer ou modifier avant soumission.
+      summary: Classifier une description (indicatif)
+      tags:
+      - AI
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+            examples:
+              DescriptionD'attente:
+                value:
+                  description: J'ai attendu plus de 4 heures aux urgences sans aucune
+                    information du personnel.
+                summary: Description d'attente
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassifyResponse'
+              examples:
+                Suggestion:
+                  value:
+                    category: Temps d'attente
+                    priority: HIGH
+                    disclaimer: Suggestion indicative générée par IA — à valider par
+                      le déclarant avant soumission.
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '503':
+          description: Service temporairement indisponible.
+        '504':
+          description: Délai dépassé lors de l'appel au service externe.
+  /api/v1/ai/mediateur/:
+    post:
+      operationId: v1_ai_mediateur_create
+      description: 'Transcrit et structure un message vocal de patient. Accepte un
+        fichier audio (`multipart/form-data`, champ `audio`) ou un audio encodé en
+        base64 (`application/json`, champ `audio_base64`). Formats : ogg, mp3, wav,
+        webm.'
+      summary: Médiation vocale (Gbègbe)
+      tags:
+      - AI
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GbegbeRequest'
+            examples:
+              AudioBase64(JSON):
+                value:
+                  audio_base64: <base64>
+                  format: ogg
+                summary: Audio base64 (JSON)
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GbegbeResponse'
+              examples:
+                SignalementStructuré:
+                  value:
+                    langue_detectee: fon
+                    transcription_fr: J'ai attendu trois heures aux urgences sans
+                      être reçu.
+                    type: plainte
+                    service: urgences
+                    gravite: urgent
+                    resume: Patient non pris en charge après une longue attente aux
+                      urgences.
+                  summary: Signalement structuré
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '503':
+          description: Service temporairement indisponible.
+        '504':
+          description: Délai dépassé lors de l'appel au service externe.
+  /api/v1/assignments/:
+    get:
+      operationId: v1_assignments_list
+      summary: Lister les affectations responsable ↔ établissement
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserFacilityAssignmentList'
+          description: ''
+    post:
+      operationId: v1_assignments_create
+      summary: Affecter un responsable à un établissement
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserFacilityAssignment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserFacilityAssignment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserFacilityAssignment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFacilityAssignment'
+          description: ''
+  /api/v1/assignments/{id}/:
+    get:
+      operationId: v1_assignments_retrieve
+      summary: Détail d'une affectation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un(une) valeur entière unique identifiant ce(cette) affectation
+          établissement.
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFacilityAssignment'
+          description: ''
+    delete:
+      operationId: v1_assignments_destroy
+      summary: Supprimer une affectation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un(une) valeur entière unique identifiant ce(cette) affectation
+          établissement.
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      description: Authentifie un utilisateur et retourne les tokens access et refresh.
+      summary: Connexion JWT
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+            examples:
+              ConnexionAdmin:
+                value:
+                  username: admin
+                  password: admin123
+                summary: Connexion admin
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomTokenObtainPair'
+          description: ''
+  /api/v1/auth/me/:
+    get:
+      operationId: v1_auth_me_retrieve
+      summary: Profil de l'utilisateur connecté
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '401':
+          description: Authentification requise ou token invalide.
+  /api/v1/auth/otp/request/:
+    post:
+      operationId: v1_auth_otp_request_create
+      description: 'Envoie un code à 6 chiffres par e-mail ou SMS. Usages : connexion
+        sans mot de passe (`LOGIN`) ou réinitialisation (`RESET_PASSWORD`).'
+      summary: Demander un code OTP
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPRequest'
+            examples:
+              OTPConnexion:
+                value:
+                  identifier: admin@example.com
+                  purpose: LOGIN
+                summary: OTP connexion
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Si un compte correspondant existe, un code de vérification
+            a été envoyé.
+  /api/v1/auth/otp/verify/:
+    post:
+      operationId: v1_auth_otp_verify_create
+      description: Pour `LOGIN`, retourne les tokens JWT. Pour `RESET_PASSWORD`, confirme
+        le code avant la réinitialisation.
+      summary: Vérifier un code OTP
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+            examples:
+              VérificationConnexion:
+                value:
+                  identifier: admin@example.com
+                  otp: '123456'
+                  purpose: LOGIN
+                summary: Vérification connexion
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/password/change/:
+    post:
+      operationId: v1_auth_password_change_create
+      description: Permet à un utilisateur connecté de changer son mot de passe.
+      summary: Changer le mot de passe
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+            examples:
+              Changement:
+                value:
+                  old_password: admin123
+                  new_password: NewSecurePass123!
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Mot de passe modifié.
+  /api/v1/auth/password/forgot/:
+    post:
+      operationId: v1_auth_password_forgot_create
+      description: Envoie un code OTP pour réinitialiser le mot de passe.
+      summary: Mot de passe oublié
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+            examples:
+              MotDePasseOublié:
+                value:
+                  identifier: admin@example.com
+                summary: Mot de passe oublié
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Si un compte correspondant existe, un code de vérification
+            a été envoyé.
+  /api/v1/auth/password/reset/:
+    post:
+      operationId: v1_auth_password_reset_create
+      description: Valide le code OTP et définit un nouveau mot de passe.
+      summary: Réinitialiser le mot de passe
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+            examples:
+              Réinitialisation:
+                value:
+                  identifier: admin@example.com
+                  otp: '123456'
+                  new_password: NewSecurePass123!
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Mot de passe mis à jour.
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      description: Échange un refresh token valide contre un nouveau access token.
+      summary: Rafraîchir le token JWT
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+            examples:
+              Refresh:
+                value:
+                  refresh: <refresh_token>
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: v1_auth_register_create
+      description: Crée un compte responsable d'établissement (`HOSPITAL_MANAGER`).
+        Les rôles admin et ministère sont créés par un administrateur.
+      summary: Inscription
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+            examples:
+              Inscription:
+                value:
+                  username: manager.chu
+                  email: manager@chu.ci
+                  password: SecurePass123!
+                  password_confirm: SecurePass123!
+                  phone: '+2250700000000'
+                  first_name: Jean
+                  last_name: Kouassi
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+  /api/v1/complaints/:
+    post:
+      operationId: v1_complaints_create
+      description: Crée une plainte avec statut initial `RECEIVED` et historique automatique.
+        Pièces jointes optionnelles (JPEG, PNG, WebP, PDF — max 5 Mo). Pour `FACILITY_AGENT`,
+        fournir un token JWT.
+      summary: Soumettre un signalement
+      tags:
+      - Public
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplaintCreate'
+            examples:
+              PlainteUsager:
+                value:
+                  submitter_profile: CITIZEN
+                  submission_type: IDENTIFIED
+                  complaint_type: COMPLAINT
+                  facility: 1
+                  service: 2
+                  category: 1
+                  title: Temps d'attente aux urgences
+                  description: Attente de plus de 3 heures sans information.
+                  severity: HIGH
+                  phone: '+22997000001'
+                  email: citoyen@example.bj
+                summary: Plainte usager
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ComplaintCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ComplaintCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintCreateResponse'
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+        '404':
+          description: Ressource introuvable.
+  /api/v1/complaints/categories/:
+    get:
+      operationId: v1_complaints_categories_list
+      summary: Lister les catégories de signalement
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      tags:
+      - Public
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComplaintCategoryPublic'
+          description: ''
+  /api/v1/complaints/meta/submitter-profiles/:
+    get:
+      operationId: v1_complaints_meta_submitter_profiles_list
+      summary: Profils de déclarant disponibles
+      tags:
+      - Public
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmitterProfileChoices'
+          description: ''
+  /api/v1/complaints/track/{reference}/:
+    get:
+      operationId: v1_complaints_track_retrieve
+      description: Retourne le statut et la chronologie publique (sans commentaires
+        internes).
+      summary: Suivre un signalement par référence
+      parameters:
+      - in: path
+        name: reference
+        schema:
+          type: string
+        required: true
+      tags:
+      - Public
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplaintTrack'
+          description: ''
+        '404':
+          description: Référence introuvable
+  /api/v1/facilities/:
+    get:
+      operationId: v1_facilities_list
+      summary: Lister les établissements
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFacilityListList'
+          description: ''
+    post:
+      operationId: v1_facilities_create
+      description: 'Admin/ministère : création libre. Responsable sans affectation
+        : création + rattachement automatique.'
+      summary: Créer un établissement
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityWrite'
+          description: ''
+  /api/v1/facilities/{facility_pk}/services/:
+    get:
+      operationId: v1_facilities_services_list
+      summary: Lister les services d'un établissement
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFacilityServiceList'
+          description: ''
+    post:
+      operationId: v1_facilities_services_create
+      summary: Ajouter un service
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityServiceWrite'
+          description: ''
+  /api/v1/facilities/{facility_pk}/services/{id}/:
+    get:
+      operationId: v1_facilities_services_retrieve
+      summary: Détail d'un service
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityService'
+          description: ''
+    put:
+      operationId: v1_facilities_services_update
+      summary: Mettre à jour un service
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FacilityServiceWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityServiceWrite'
+          description: ''
+    patch:
+      operationId: v1_facilities_services_partial_update
+      summary: Mettre à jour partiellement un service
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityServiceWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityServiceWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityServiceWrite'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityServiceWrite'
+          description: ''
+    delete:
+      operationId: v1_facilities_services_destroy
+      description: Désactivation logique (`active=false`).
+      summary: Désactiver un service
+      parameters:
+      - in: path
+        name: facility_pk
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/facilities/{id}/:
+    get:
+      operationId: v1_facilities_retrieve
+      summary: Détail d'un établissement
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityDetail'
+          description: ''
+    put:
+      operationId: v1_facilities_update
+      summary: Mettre à jour un établissement
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FacilityWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityWrite'
+          description: ''
+    patch:
+      operationId: v1_facilities_partial_update
+      summary: Mettre à jour partiellement
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFacilityWrite'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityWrite'
+          description: ''
+    delete:
+      operationId: v1_facilities_destroy
+      description: Désactivation logique (`active=false`), pas de suppression physique.
+      summary: Désactiver un établissement
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/facilities/import/:
+    post:
+      operationId: v1_facilities_import_create
+      summary: Importer des établissements (JSON)
+      tags:
+      - Facilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacilityImport'
+            examples:
+              ImportJSON:
+                value:
+                  facilities:
+                  - name: HZ Suru-Léré
+                    code: HZ-SURU
+                    facility_type: HOSPITAL
+                    region: Littoral
+                    city: Cotonou
+                    address: Quartier Suru-Léré
+                    services:
+                    - Accueil
+                    - Urgences
+                summary: Import JSON
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Résultat de l'import
+  /api/v1/facilities/import/csv/:
+    post:
+      operationId: v1_facilities_import_csv_create
+      description: 'Colonnes requises : code, name, facility_type, region, city, address.
+        Optionnel : services (séparés par |), active.'
+      summary: Importer des établissements (CSV)
+      tags:
+      - Facilities
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/health/:
+    get:
+      operationId: v1_health_retrieve
+      summary: Vérifier que l'API est en ligne
+      tags:
+      - Health
+      security:
+      - {}
+      responses:
+        '200':
+          description: API opérationnelle
+  /api/v1/hospital/complaints/:
+    get:
+      operationId: v1_hospital_complaints_list
+      summary: Lister les plaintes de l'établissement
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      tags:
+      - Hospital
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+  /api/v1/hospital/complaints/{id}/:
+    get:
+      operationId: v1_hospital_complaints_retrieve
+      summary: Détail d'une plainte
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Hospital
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+        '404':
+          description: Ressource introuvable.
+  /api/v1/hospital/complaints/{id}/comments/:
+    post:
+      operationId: v1_hospital_complaints_comments_create
+      summary: Ajouter un commentaire interne
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Hospital
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplaintCommentCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ComplaintCommentCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ComplaintCommentCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalComment'
+          description: ''
+  /api/v1/hospital/complaints/{id}/reject/:
+    patch:
+      operationId: v1_hospital_complaints_reject_partial_update
+      summary: Rejeter une plainte
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Hospital
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintReject'
+            examples:
+              Rejet:
+                value:
+                  reason: Plainte hors périmètre de l'établissement
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintReject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintReject'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalStatusHistory'
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '404':
+          description: Ressource introuvable.
+  /api/v1/hospital/complaints/{id}/status/:
+    patch:
+      operationId: v1_hospital_complaints_status_partial_update
+      summary: Changer le statut d'une plainte
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Hospital
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintStatusUpdate'
+            examples:
+              PasserEnCours:
+                value:
+                  status: IN_PROGRESS
+                  reason: Équipe mobilisée
+                summary: Passer en cours
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintStatusUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedComplaintStatusUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalStatusHistory'
+          description: ''
+        '400':
+          description: Requête invalide (validation ou règle métier).
+        '404':
+          description: Ressource introuvable.
+  /api/v1/hospital/dashboard/:
+    get:
+      operationId: v1_hospital_dashboard_retrieve
+      description: 'KPIs : totaux par statut, délai moyen de traitement, top catégories
+        et services.'
+      summary: Tableau de bord établissement
+      tags:
+      - Hospital
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Indicateurs établissement
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+  /api/v1/ministry/analytics/:
+    get:
+      operationId: v1_ministry_analytics_retrieve
+      description: Agrégats par statut, sévérité, catégorie, type et profil déclarant.
+      summary: Analytiques détaillées
+      tags:
+      - Ministry
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+  /api/v1/ministry/complaints/:
+    get:
+      operationId: v1_ministry_complaints_list
+      description: 'Filtres : region, facility, status, category, service, severity,
+        date_from, date_to.'
+      summary: Liste nationale des plaintes
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: number
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: facility
+        schema:
+          type: number
+      - name: ordering
+        required: false
+        in: query
+        description: Quel champ utiliser pour classer les résultats.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Nombre de résultats à retourner par page.
+        schema:
+          type: integer
+      - in: query
+        name: region
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Un terme de recherche.
+        schema:
+          type: string
+      - in: query
+        name: service
+        schema:
+          type: number
+      - in: query
+        name: severity
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - Ministry
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+  /api/v1/ministry/complaints/{id}/:
+    get:
+      operationId: v1_ministry_complaints_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Un(une) valeur entière unique identifiant ce(cette) plainte.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalComplaintList'
+          description: ''
+  /api/v1/ministry/complaints/export/:
+    get:
+      operationId: v1_ministry_complaints_export_retrieve
+      description: Mêmes filtres que la liste nationale (region, facility, status,
+        dates, etc.).
+      summary: Exporter les plaintes en CSV
+      tags:
+      - Ministry
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+  /api/v1/ministry/dashboard/:
+    get:
+      operationId: v1_ministry_dashboard_retrieve
+      description: 'KPIs nationaux : totaux, taux de résolution/rejet, délai moyen,
+        répartition par région et établissement, tendance mensuelle.'
+      summary: Tableau de bord national
+      tags:
+      - Ministry
+      security:
+      - jwtAuth: []
+      responses:
+        '403':
+          description: Accès refusé (rôle ou périmètre insuffisant).
+components:
+  schemas:
+    BlankEnum:
+      enum:
+      - ''
+    ChangePassword:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - new_password
+      - old_password
+    ClassifyRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Texte libre décrivant le signalement.
+          maxLength: 5000
+          minLength: 10
+      required:
+      - description
+    ClassifyResponse:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Catégorie suggérée (indicative).
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          description: |-
+            Priorité suggérée (indicative).
+
+            * `LOW` - LOW
+            * `MEDIUM` - MEDIUM
+            * `HIGH` - HIGH
+            * `URGENT` - URGENT
+        disclaimer:
+          type: string
+          description: 'Rappel : la suggestion n''est pas appliquée automatiquement.'
+      required:
+      - category
+      - disclaimer
+      - priority
+    ComplaintAttachmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        file:
+          type: string
+          format: uri
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - file
+      - id
+      - uploaded_at
+    ComplaintCategoryPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+      required:
+      - id
+      - name
+    ComplaintCommentCreate:
+      type: object
+      properties:
+        comment:
+          type: string
+      required:
+      - comment
+    ComplaintCreate:
+      type: object
+      description: |-
+        Serializer de création — API publique et agents connectés.
+        Le déclarant choisit son profil via `submitter_profile`.
+      properties:
+        submitter_profile:
+          $ref: '#/components/schemas/SubmitterProfileEnum'
+        submission_type:
+          $ref: '#/components/schemas/SubmissionTypeEnum'
+        complaint_type:
+          $ref: '#/components/schemas/ComplaintTypeEnum'
+        facility:
+          type: integer
+        service:
+          type: integer
+        category:
+          type: integer
+        reported_agent:
+          type: integer
+          nullable: true
+        reported_agent_name:
+          type: string
+          description: Nom de l'agent visé si non enregistré dans le système
+          maxLength: 255
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        incident_date:
+          type: string
+          format: date
+          nullable: true
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        preferred_contact_method:
+          oneOf:
+          - $ref: '#/components/schemas/PreferredContactMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        attachments:
+          type: array
+          items:
+            type: string
+            format: uri
+          writeOnly: true
+      required:
+      - category
+      - complaint_type
+      - description
+      - facility
+      - service
+      - severity
+      - submission_type
+      - title
+    ComplaintCreateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        current_status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        submitter_profile:
+          allOf:
+          - $ref: '#/components/schemas/SubmitterProfileEnum'
+          readOnly: true
+        submission_type:
+          allOf:
+          - $ref: '#/components/schemas/SubmissionTypeEnum'
+          readOnly: true
+        complaint_type:
+          allOf:
+          - $ref: '#/components/schemas/ComplaintTypeEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplaintAttachmentResponse'
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+      required:
+      - attachments
+      - complaint_type
+      - created_at
+      - current_status
+      - id
+      - message
+      - reference
+      - submission_type
+      - submitter_profile
+    ComplaintStatusTimeline:
+      type: object
+      properties:
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - status
+    ComplaintTrack:
+      type: object
+      properties:
+        reference:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        current_status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        complaint_type:
+          allOf:
+          - $ref: '#/components/schemas/ComplaintTypeEnum'
+          readOnly: true
+        facility_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        status_timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplaintStatusTimeline'
+          readOnly: true
+      required:
+      - complaint_type
+      - created_at
+      - current_status
+      - facility_name
+      - reference
+      - status_timeline
+      - title
+      - updated_at
+    ComplaintTypeEnum:
+      enum:
+      - COMPLAINT
+      - SUGGESTION
+      - APPRECIATION
+      type: string
+      description: |-
+        * `COMPLAINT` - Plainte
+        * `SUGGESTION` - Suggestion
+        * `APPRECIATION` - Félicitation
+    CustomTokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    FacilityDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          maxLength: 50
+        facility_type:
+          $ref: '#/components/schemas/FacilityTypeEnum'
+        region:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        active:
+          type: boolean
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityService'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - city
+      - code
+      - created_at
+      - facility_type
+      - id
+      - name
+      - region
+      - services
+    FacilityImport:
+      type: object
+      properties:
+        facilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityImportItem'
+      required:
+      - facilities
+    FacilityImportItem:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          maxLength: 50
+        facility_type:
+          $ref: '#/components/schemas/FacilityTypeEnum'
+        region:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        active:
+          type: boolean
+          default: true
+        services:
+          type: array
+          items:
+            type: string
+            maxLength: 150
+      required:
+      - address
+      - city
+      - code
+      - facility_type
+      - name
+      - region
+    FacilityList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          maxLength: 50
+        facility_type:
+          $ref: '#/components/schemas/FacilityTypeEnum'
+        region:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        active:
+          type: boolean
+        services_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - address
+      - city
+      - code
+      - created_at
+      - facility_type
+      - id
+      - name
+      - region
+      - services_count
+    FacilityService:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        active:
+          type: boolean
+      required:
+      - id
+      - name
+    FacilityServiceWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        active:
+          type: boolean
+      required:
+      - name
+    FacilityTypeEnum:
+      enum:
+      - HOSPITAL
+      - HEALTH_CENTER
+      - CLINIC
+      - PHARMACY
+      - OTHER
+      type: string
+      description: |-
+        * `HOSPITAL` - Hôpital
+        * `HEALTH_CENTER` - Centre de santé
+        * `CLINIC` - Clinique
+        * `PHARMACY` - Pharmacie
+        * `OTHER` - Autre
+    FacilityWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          maxLength: 50
+        facility_type:
+          $ref: '#/components/schemas/FacilityTypeEnum'
+        region:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        active:
+          type: boolean
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityServiceWrite'
+      required:
+      - address
+      - city
+      - code
+      - facility_type
+      - name
+      - region
+    ForgotPassword:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: E-mail, nom d'utilisateur ou numéro de téléphone
+      required:
+      - identifier
+    FormatEnum:
+      enum:
+      - ogg
+      - mp3
+      - wav
+      - webm
+      type: string
+      description: |-
+        * `ogg` - ogg
+        * `mp3` - mp3
+        * `wav` - wav
+        * `webm` - webm
+    GbegbeRequest:
+      type: object
+      description: |-
+        Accepte l'audio de deux façons :
+        - multipart/form-data : champ `audio` (fichier) + `format` optionnel
+        - application/json : `audio_base64` + `format` (par défaut « ogg »)
+        Produit un `validated_data` normalisé avec `audio_base64` et `format`.
+      properties:
+        audio:
+          type: string
+          format: uri
+          writeOnly: true
+          description: 'Fichier audio (multipart). Formats : ogg, mp3, wav, webm.'
+        audio_base64:
+          type: string
+          writeOnly: true
+          description: Audio encodé en base64 (mode JSON).
+        format:
+          allOf:
+          - $ref: '#/components/schemas/FormatEnum'
+          description: |-
+            Format de l'audio (ogg, mp3, wav, webm).
+
+            * `ogg` - ogg
+            * `mp3` - mp3
+            * `wav` - wav
+            * `webm` - webm
+    GbegbeResponse:
+      type: object
+      properties:
+        langue_detectee:
+          type: string
+          description: Langue détectée (fon, yoruba ou français).
+        transcription_fr:
+          type: string
+          description: Transcription fidèle en français.
+        type:
+          type: string
+          description: plainte, suggestion ou felicitation.
+        service:
+          type: string
+          description: urgences, consultation, pharmacie ou autre.
+        gravite:
+          type: string
+          description: faible, moyen ou urgent.
+        resume:
+          type: string
+          description: Résumé synthétique du signalement.
+      required:
+      - gravite
+      - langue_detectee
+      - resume
+      - service
+      - transcription_fr
+      - type
+    HospitalComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        author_name:
+          type: string
+          readOnly: true
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author_name
+      - comment
+      - created_at
+      - id
+    HospitalComplaintList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          maxLength: 30
+        title:
+          type: string
+          maxLength: 255
+        submitter_profile:
+          $ref: '#/components/schemas/SubmitterProfileEnum'
+        submission_type:
+          $ref: '#/components/schemas/SubmissionTypeEnum'
+        complaint_type:
+          $ref: '#/components/schemas/ComplaintTypeEnum'
+        current_status:
+          $ref: '#/components/schemas/StatusEnum'
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+        category_name:
+          type: string
+          readOnly: true
+        service_name:
+          type: string
+          readOnly: true
+        facility_name:
+          type: string
+          readOnly: true
+        facility_code:
+          type: string
+          readOnly: true
+        facility_region:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_name
+      - complaint_type
+      - created_at
+      - facility_code
+      - facility_name
+      - facility_region
+      - id
+      - service_name
+      - severity
+      - submission_type
+      - title
+      - updated_at
+    HospitalStatusHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        old_status:
+          type: string
+          maxLength: 30
+        new_status:
+          $ref: '#/components/schemas/StatusEnum'
+        changed_by_name:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - changed_by_name
+      - created_at
+      - id
+      - new_status
+    OTPRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: E-mail, nom d'utilisateur ou numéro de téléphone
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - identifier
+      - purpose
+    OTPVerify:
+      type: object
+      properties:
+        identifier:
+          type: string
+        otp:
+          type: string
+          maxLength: 8
+          minLength: 4
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - identifier
+      - otp
+      - purpose
+    PaginatedFacilityListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityList'
+    PaginatedFacilityServiceList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityService'
+    PaginatedUserFacilityAssignmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserFacilityAssignment'
+    PatchedComplaintReject:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 3
+    PatchedComplaintStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        reason:
+          type: string
+          default: ''
+    PatchedFacilityServiceWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        active:
+          type: boolean
+    PatchedFacilityWrite:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        code:
+          type: string
+          maxLength: 50
+        facility_type:
+          $ref: '#/components/schemas/FacilityTypeEnum'
+        region:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+        active:
+          type: boolean
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacilityServiceWrite'
+    PreferredContactMethodEnum:
+      enum:
+      - EMAIL
+      - PHONE
+      - SMS
+      type: string
+      description: |-
+        * `EMAIL` - E-mail
+        * `PHONE` - Téléphone
+        * `SMS` - SMS
+    PriorityEnum:
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      - URGENT
+      type: string
+      description: |-
+        * `LOW` - LOW
+        * `MEDIUM` - MEDIUM
+        * `HIGH` - HIGH
+        * `URGENT` - URGENT
+    PurposeEnum:
+      enum:
+      - LOGIN
+      - RESET_PASSWORD
+      type: string
+      description: |-
+        * `LOGIN` - Connexion
+        * `RESET_PASSWORD` - Réinitialisation mot de passe
+    Register:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 8
+        phone:
+          type: string
+          maxLength: 20
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+      required:
+      - email
+      - password
+      - password_confirm
+      - username
+    RegisterResponse:
+      type: object
+      properties:
+        refresh:
+          type: string
+        access:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - refresh
+      - user
+    ResetPassword:
+      type: object
+      properties:
+        identifier:
+          type: string
+        otp:
+          type: string
+          maxLength: 8
+          minLength: 4
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 8
+      required:
+      - identifier
+      - new_password
+      - otp
+    RoleEnum:
+      enum:
+      - ADMIN
+      - MINISTRY_SUPERVISOR
+      - HOSPITAL_MANAGER
+      - FACILITY_AGENT
+      type: string
+      description: |-
+        * `ADMIN` - Administrateur
+        * `MINISTRY_SUPERVISOR` - Superviseur ministère
+        * `HOSPITAL_MANAGER` - Responsable hôpital
+        * `FACILITY_AGENT` - Agent d'établissement
+    SeverityEnum:
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      - URGENT
+      type: string
+      description: |-
+        * `LOW` - Faible
+        * `MEDIUM` - Moyenne
+        * `HIGH` - Élevée
+        * `URGENT` - Urgente
+    StatusEnum:
+      enum:
+      - RECEIVED
+      - UNDER_REVIEW
+      - IN_PROGRESS
+      - WAITING_INFO
+      - RESOLVED
+      - REJECTED
+      - CLOSED
+      type: string
+      description: |-
+        * `RECEIVED` - Reçue
+        * `UNDER_REVIEW` - En examen
+        * `IN_PROGRESS` - En cours
+        * `WAITING_INFO` - En attente d'informations
+        * `RESOLVED` - Résolue
+        * `REJECTED` - Rejetée
+        * `CLOSED` - Clôturée
+    SubmissionTypeEnum:
+      enum:
+      - ANONYMOUS
+      - CONFIDENTIAL
+      - IDENTIFIED
+      type: string
+      description: |-
+        * `ANONYMOUS` - Anonyme
+        * `CONFIDENTIAL` - Confidentiel
+        * `IDENTIFIED` - Identifié
+    SubmitterProfileChoices:
+      type: object
+      description: Métadonnées exposées à l'UI pour le choix du profil déclarant.
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        requires_auth:
+          type: boolean
+        allows_reported_agent:
+          type: boolean
+      required:
+      - allows_reported_agent
+      - description
+      - label
+      - requires_auth
+      - value
+    SubmitterProfileEnum:
+      enum:
+      - CITIZEN
+      - FACILITY_AGENT
+      type: string
+      description: |-
+        * `CITIZEN` - Usager / citoyen
+        * `FACILITY_AGENT` - Agent d'établissement
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Nom d’utilisateur
+          description: Requis. 150 caractères maximum. Uniquement des lettres, nombres
+            et les caractères « @ », « . », « + », « - » et « _ ».
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Adresse électronique
+        first_name:
+          type: string
+          readOnly: true
+          title: Prénom
+        last_name:
+          type: string
+          readOnly: true
+          title: Nom
+        phone:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - email
+      - first_name
+      - id
+      - is_active
+      - last_name
+      - phone
+      - role
+      - username
+    UserFacilityAssignment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+        user_id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        facility:
+          type: integer
+        facility_code:
+          type: string
+          readOnly: true
+        facility_name:
+          type: string
+          readOnly: true
+        assigned_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_at
+      - facility
+      - facility_code
+      - facility_name
+      - id
+      - user
+      - user_id
+      - username
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: Health
+  description: Santé de l'API
+- name: Auth
+  description: Authentification JWT
+- name: Public
+  description: Endpoints publics (soumission, suivi)
+- name: Facilities
+  description: Établissements sanitaires
+- name: Hospital
+  description: Gestion hôpital
+- name: Ministry
+  description: Supervision ministère
+- name: AI
+  description: Classification assistée

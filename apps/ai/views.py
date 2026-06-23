@@ -9,8 +9,10 @@ from rest_framework.views import APIView
 from apps.ai.serializers import (
     ClassifyRequestSerializer,
     ClassifyResponseSerializer,
+    GbegbeBase64Serializer,
     GbegbeRequestSerializer,
     GbegbeResponseSerializer,
+    GbegbeUploadSerializer,
 )
 from apps.ai.services.classifier import ClassificationError, classify_description
 from apps.ai.services.mediateur import GbegbeError, mediate_audio
@@ -113,7 +115,10 @@ class GbegbeView(APIView):
             "audio (`multipart/form-data`, champ `audio`) ou un audio encodé en base64 "
             "(`application/json`, champ `audio_base64`). Formats : ogg, mp3, wav, webm."
         ),
-        request=GbegbeRequestSerializer,
+        request={
+            "multipart/form-data": GbegbeUploadSerializer,
+            "application/json": GbegbeBase64Serializer,
+        },
         responses={
             200: GbegbeResponseSerializer,
             400: COMMON_ERRORS[400],
