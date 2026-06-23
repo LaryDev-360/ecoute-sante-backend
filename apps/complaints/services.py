@@ -152,6 +152,18 @@ def record_status_change(
     )
     complaint.current_status = new_status
     complaint.save(update_fields=["current_status", "updated_at"])
+
+    if changed_by is not None:
+        from apps.audit.services import log_complaint_status_changed
+
+        log_complaint_status_changed(
+            complaint,
+            actor=changed_by,
+            old_status=old_status,
+            new_status=new_status,
+            reason=reason,
+        )
+
     return history
 
 

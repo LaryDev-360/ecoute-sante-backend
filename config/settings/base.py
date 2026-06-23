@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.complaints",
     "apps.analytics",
     "apps.ai",
+    "apps.audit",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

@@ -68,9 +68,18 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         attachments = validated_data.pop("attachments", [])
+        request = self.context.get("request")
+        user = request.user if request and request.user.is_authenticated else None
+        if user:
+            validated_data.setdefault("submitted_by", user)
+
         complaint = Complaint.objects.create(**validated_data)
         if attachments:
             save_complaint_attachments(complaint, attachments)
+
+        from apps.audit.services import log_complaint_created
+
+        log_complaint_created(complaint, actor=user)
         return complaint
 
     def validate(self, attrs):
@@ -376,8 +385,12 @@ class ComplaintCommentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         complaint = self.context["complaint"]
         user = self.context["request"].user
-        return ComplaintComment.objects.create(
+        comment = ComplaintComment.objects.create(
             complaint=complaint,
             author=user,
             **validated_data,
         )
+        from apps.audit.services import log_complaint_comment_added
+
+        log_complaint_comment_added(comment, actor=user)
+        return comment
