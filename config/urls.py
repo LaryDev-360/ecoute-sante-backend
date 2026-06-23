@@ -10,8 +10,11 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.complaints.ussd_views import UssdView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("ussd/", UssdView.as_view(), name="ussd"),
     path("api/v1/", include("apps.common.urls")),
     path("api/v1/auth/", include("apps.accounts.urls")),
     path("api/v1/", include("apps.facilities.urls")),

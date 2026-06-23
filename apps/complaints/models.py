@@ -205,6 +205,59 @@ class ComplaintStatusHistory(models.Model):
         return f"{self.complaint.reference}: {self.old_status} → {self.new_status}"
 
 
+class UssdSession(models.Model):
+    """
+    État d'une session USSD (Africa's Talking) pour le dépôt pas-à-pas d'une plainte.
+    Identifiée par le `sessionId` fourni par la passerelle à chaque requête.
+    """
+
+    session_id = models.CharField(max_length=100, unique=True)
+    phone_number = models.CharField(max_length=20)
+    step = models.CharField(max_length=30, default="HOME")
+    page = models.PositiveIntegerField(default=0)
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    service = models.ForeignKey(
+        FacilityService,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    category = models.ForeignKey(
+        ComplaintCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    complaint_type = models.CharField(max_length=20, blank=True)
+    severity = models.CharField(max_length=20, blank=True)
+    complaint = models.ForeignKey(
+        "complaints.Complaint",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "session USSD"
+        verbose_name_plural = "sessions USSD"
+        ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["session_id"])]
+
+    def __str__(self):
+        return f"USSD {self.session_id} ({self.phone_number})"
+
+
 class ComplaintAssignment(models.Model):
     complaint = models.ForeignKey(
         Complaint,

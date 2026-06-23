@@ -177,5 +177,6 @@ SPECTACULAR_SETTINGS = {
         {"name": "Hospital", "description": "Gestion hôpital"},
         {"name": "Ministry", "description": "Supervision ministère"},
         {"name": "AI", "description": "Classification assistée"},
+        {"name": "USSD", "description": "Passerelle USSD (Africa's Talking)"},
     ],
 }
