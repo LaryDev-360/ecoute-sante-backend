@@ -1,7 +1,7 @@
 .PHONY: install migrate seed run test db-up db-down
 
 VENV = venv/bin/activate
-PYTHON = . $(VENV) && python
+PYTHON = venv/bin/python
 
 install:
 	python3 -m venv venv
