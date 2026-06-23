@@ -109,17 +109,20 @@ class PublicComplaintAPITests(BaseAPITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_facility_agent_submit_requires_auth(self):
+    def test_facility_agent_anonymous_submit(self):
         response = self.client.post(
             "/api/v1/complaints/",
             self._payload(
                 submitter_profile=SubmitterProfile.FACILITY_AGENT,
-                submission_type=SubmissionType.CONFIDENTIAL,
+                submission_type=SubmissionType.ANONYMOUS,
                 reported_agent_name="Agent X",
             ),
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        complaint = Complaint.objects.get(reference=response.json()["reference"])
+        self.assertEqual(complaint.submitter_profile, SubmitterProfile.FACILITY_AGENT)
+        self.assertIsNone(complaint.submitted_by)
 
     def test_facility_agent_submit_with_jwt(self):
         agent_a = self.create_user(username="agent.pub.a", role=UserRole.FACILITY_AGENT)
@@ -189,4 +192,7 @@ class PublicComplaintAPITests(BaseAPITestCase):
 
         response = self.client.get(f"/api/v1/complaints/track/{complaint.reference}/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["status_timeline"]), 2)
+        data = response.json()
+        self.assertEqual(len(data["status_timeline"]), 2)
+        messages = [e.get("message") for e in data["status_timeline"]]
+        self.assertIn("Prise en charge", messages)

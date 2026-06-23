@@ -159,14 +159,20 @@ Si le dashboard Neon affiche **0 tables**, les migrations n’ont pas été appl
 4. **Redéployer** (Manual Deploy) pour que le nouveau `render_start.sh` prenne effet.
 5. Rafraîchir Neon → Tables : vous devriez voir `django_migrations`, `accounts_user`, `facilities_facility`, etc.
 
-#### 4. Données initiales (optionnel)
+#### 4. Données initiales
 
-En shell Render (**Shell** dans le dashboard) :
+Au **premier déploiement** (base sans utilisateurs), `render_migrate.sh` exécute automatiquement `seed_if_empty` (établissements, comptes démo, plaintes).
+
+Pour forcer le seed manuellement (Render Shell) :
 
 ```bash
+python manage.py seed_if_empty --force
+# ou séparément :
 python manage.py seed_facilities
 python manage.py seed_data
 ```
+
+En local : `make seed` (équivalent à `seed_if_empty --force` après migrate).
 
 #### Limitations Render (plan gratuit)
 

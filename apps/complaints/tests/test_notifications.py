@@ -92,6 +92,21 @@ class ComplaintNotificationTests(TestCase):
         self.assertIn("Rejetée", mail.outbox[0].body)
         self.assertIn("Hors périmètre", mail.outbox[0].body)
 
+    def test_resolved_notification_includes_resolution(self):
+        mail.outbox.clear()
+        complaint = self._create_complaint()
+
+        record_status_change(
+            complaint,
+            ComplaintStatus.RESOLVED,
+            reason="Formation du personnel effectuée",
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn("Résolution :", body)
+        self.assertIn("Formation du personnel", body)
+
     def test_notify_prefers_sms_when_configured(self):
         mail.outbox.clear()
         complaint = self._create_complaint(

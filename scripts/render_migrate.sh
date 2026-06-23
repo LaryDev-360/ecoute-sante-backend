@@ -21,3 +21,6 @@ python manage.py migrate --noinput
 
 echo "Verifying database..."
 python manage.py db_status
+
+echo "Seeding demo data if database is empty..."
+python manage.py seed_if_empty

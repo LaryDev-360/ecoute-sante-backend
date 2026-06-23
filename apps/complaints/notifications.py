@@ -63,12 +63,12 @@ def notify_complainant_status_change(
     if preferred in ("", PreferredContactMethod.EMAIL) and email:
         sent = _send_status_email(complaint, old_status, new_status, reason, email) or sent
     elif preferred in (PreferredContactMethod.PHONE, PreferredContactMethod.SMS) and phone:
-        sent = _send_status_sms(complaint, new_status, phone) or sent
+        sent = _send_status_sms(complaint, new_status, phone, reason) or sent
     else:
         if email:
             sent = _send_status_email(complaint, old_status, new_status, reason, email) or sent
         elif phone:
-            sent = _send_status_sms(complaint, new_status, phone) or sent
+            sent = _send_status_sms(complaint, new_status, phone, reason) or sent
 
     return sent
 
@@ -96,7 +96,12 @@ def _send_status_email(
     if old_label:
         lines.append(f"Statut précédent : {old_label}")
     if reason:
-        lines.extend(["", f"Message de l'établissement : {reason}"])
+        if new_status == ComplaintStatus.RESOLVED:
+            lines.extend(["", f"Résolution : {reason}"])
+        elif new_status == ComplaintStatus.REJECTED:
+            lines.extend(["", f"Motif : {reason}"])
+        else:
+            lines.extend(["", f"Message de l'établissement : {reason}"])
     lines.extend(
         [
             "",
@@ -123,11 +128,15 @@ def _send_status_email(
         return False
 
 
-def _send_status_sms(complaint: Complaint, new_status: str, phone: str) -> bool:
+def _send_status_sms(complaint: Complaint, new_status: str, phone: str, reason: str = "") -> bool:
     new_label = _status_label(new_status)
     message = (
-        f"Santé Écoute — Dossier {complaint.reference} : statut « {new_label} ». "
-        f"Suivi : {_tracking_url(complaint.reference)}"
+        f"Santé Écoute — Dossier {complaint.reference} : statut « {new_label} »."
     )
+    reason = (reason or "").strip()
+    if reason and new_status == ComplaintStatus.RESOLVED:
+        snippet = reason if len(reason) <= 80 else f"{reason[:77]}..."
+        message = f"{message} {snippet}"
+    message = f"{message} Suivi : {_tracking_url(complaint.reference)}"
     logger.info("Complaint status SMS to %s: %s", phone, message)
     return True

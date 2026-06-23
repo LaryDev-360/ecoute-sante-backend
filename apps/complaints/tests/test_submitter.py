@@ -71,11 +71,21 @@ class SubmitterProfileValidationTests(BaseAPITestCase):
         with self.assertRaises(ComplaintValidationError):
             validate_complaint_submission(data, user=self.agent_a)
 
-    def test_facility_agent_requires_authentication(self):
+    def test_facility_agent_anonymous_with_reported_name(self):
         data = {
             **self.base_data,
             "submitter_profile": SubmitterProfile.FACILITY_AGENT,
+            "submission_type": SubmissionType.ANONYMOUS,
             "reported_agent_name": "Agent externe",
+        }
+        validate_complaint_submission(data, user=None)
+
+    def test_facility_agent_anonymous_cannot_use_reported_agent_fk(self):
+        data = {
+            **self.base_data,
+            "submitter_profile": SubmitterProfile.FACILITY_AGENT,
+            "submission_type": SubmissionType.ANONYMOUS,
+            "reported_agent": self.agent_b,
         }
         with self.assertRaises(ComplaintValidationError):
             validate_complaint_submission(data, user=None)

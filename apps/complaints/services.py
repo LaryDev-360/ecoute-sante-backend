@@ -52,17 +52,12 @@ def validate_complaint_submission(data: dict, user: User | None = None) -> None:
     if profile != SubmitterProfile.FACILITY_AGENT:
         raise ComplaintValidationError("Profil de déclarant invalide.", "submitter_profile")
 
-    if not user or not user.is_authenticated:
-        raise ComplaintValidationError(
-            "Authentification requise pour une plainte en tant qu'agent.",
-            "submitter_profile",
-        )
-
-    if user.role not in FACILITY_STAFF_ROLES and user.role != UserRole.ADMIN:
-        raise ComplaintValidationError(
-            "Seul un agent ou responsable d'établissement peut utiliser ce profil.",
-            "submitter_profile",
-        )
+    if submission_type == SubmissionType.IDENTIFIED:
+        if not data.get("phone") and not data.get("email"):
+            raise ComplaintValidationError(
+                "Téléphone ou e-mail requis pour un dépôt identifié.",
+                "phone",
+            )
 
     if complaint_type == ComplaintType.COMPLAINT:
         if not reported_agent and not reported_agent_name:
@@ -70,6 +65,21 @@ def validate_complaint_submission(data: dict, user: User | None = None) -> None:
                 "Indiquez l'agent concerné (compte ou nom).",
                 "reported_agent",
             )
+
+    if reported_agent and (not user or not user.is_authenticated):
+        raise ComplaintValidationError(
+            "Pour cibler un compte agent, connectez-vous ou indiquez seulement un nom.",
+            "reported_agent",
+        )
+
+    if not user or not user.is_authenticated:
+        return
+
+    if user.role not in FACILITY_STAFF_ROLES and user.role != UserRole.ADMIN:
+        raise ComplaintValidationError(
+            "Seul un agent ou responsable d'établissement peut utiliser ce profil connecté.",
+            "submitter_profile",
+        )
 
     if reported_agent:
         if reported_agent.pk == user.pk:
@@ -184,6 +194,19 @@ def reject_complaint(complaint: Complaint, changed_by, reason: str) -> Complaint
     return record_status_change(
         complaint,
         ComplaintStatus.REJECTED,
+        changed_by=changed_by,
+        reason=reason,
+    )
+
+
+def resolve_complaint(complaint: Complaint, changed_by, reason: str) -> ComplaintStatusHistory:
+    """Marque une plainte comme résolue avec explication obligatoire au déclarant."""
+    reason = (reason or "").strip()
+    if len(reason) < 3:
+        raise ValueError("L'explication de la résolution est obligatoire.")
+    return record_status_change(
+        complaint,
+        ComplaintStatus.RESOLVED,
         changed_by=changed_by,
         reason=reason,
     )

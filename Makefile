@@ -20,6 +20,9 @@ migrate:
 	$(PYTHON) manage.py migrate
 
 seed: migrate
+	$(PYTHON) manage.py seed_if_empty --force
+
+seed-fresh: migrate
 	$(PYTHON) manage.py seed_facilities
 	$(PYTHON) manage.py seed_data
 

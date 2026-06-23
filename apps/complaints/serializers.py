@@ -19,6 +19,7 @@ from apps.complaints.services import (
     apply_submitter_context,
     change_complaint_status,
     reject_complaint,
+    resolve_complaint,
     validate_complaint_submission,
 )
 from apps.facilities.models import Facility, FacilityService
@@ -165,10 +166,16 @@ class ComplaintCreateResponseSerializer(serializers.ModelSerializer):
 
 class ComplaintStatusTimelineSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source="new_status")
+    message = serializers.SerializerMethodField()
 
     class Meta:
         model = ComplaintStatusHistory
-        fields = ("status", "created_at")
+        fields = ("status", "created_at", "message")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_message(self, obj) -> str | None:
+        reason = (obj.reason or "").strip()
+        return reason or None
 
 
 class ComplaintTrackSerializer(serializers.ModelSerializer):
@@ -237,9 +244,9 @@ SUBMITTER_PROFILE_META = [
         "label": SubmitterProfile.FACILITY_AGENT.label,
         "description": (
             "Je suis agent d'un établissement et je signale un problème "
-            "impliquant un autre agent (compte ou nom)."
+            "impliquant un autre agent. Dépôt anonyme possible sans connexion."
         ),
-        "requires_auth": True,
+        "requires_auth": False,
         "allows_reported_agent": True,
     },
 ]
@@ -374,15 +381,20 @@ class ComplaintStatusUpdateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def save(self, complaint, user):
+        status = self.validated_data["status"]
+        reason = self.validated_data.get("reason", "")
         try:
+            if status == ComplaintStatus.RESOLVED:
+                return resolve_complaint(complaint, user, reason)
             return change_complaint_status(
                 complaint,
-                self.validated_data["status"],
+                status,
                 changed_by=user,
-                reason=self.validated_data.get("reason", ""),
+                reason=reason,
             )
         except ValueError as exc:
-            raise serializers.ValidationError({"status": str(exc)}) from exc
+            field = "reason" if status == ComplaintStatus.RESOLVED else "status"
+            raise serializers.ValidationError({field: str(exc)}) from exc
 
 
 class ComplaintRejectSerializer(serializers.Serializer):
