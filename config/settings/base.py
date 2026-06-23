@@ -150,7 +150,7 @@ OPENROUTER_MODEL = env("OPENROUTER_MODEL", default="openrouter/free")
 OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
 OPENROUTER_TIMEOUT = env.int("OPENROUTER_TIMEOUT", default=15)
 OPENROUTER_APP_NAME = env("OPENROUTER_APP_NAME", default="Santé Écoute")
-OPENROUTER_APP_URL = env("OPENROUTER_APP_URL", default="http://localhost:8000")
+# OPENROUTER_APP_URL = env("OPENROUTER_APP_URL", default="http://localhost:8000")
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),

@@ -40,7 +40,7 @@ def chat_completion(messages: list[dict], *, timeout: float | None = None) -> st
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": settings.OPENROUTER_APP_URL,
+            # "HTTP-Referer": settings.OPENROUTER_APP_URL,
             "X-Title": settings.OPENROUTER_APP_NAME,
         },
     )

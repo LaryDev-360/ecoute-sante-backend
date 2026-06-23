@@ -1,0 +1,47 @@
+# Render Blueprint — Santé Écoute API
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: connect this repo on Render → New → Blueprint → select render.yaml
+# Database: create a Neon project separately, then paste DATABASE_URL in the
+# Render dashboard (Environment → DATABASE_URL).
+
+services:
+  - type: web
+    name: sante-ecoute-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: ./scripts/render_build.sh
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: >-
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:$PORT
+      --workers 2
+      --timeout 120
+    healthCheckPath: /api/v1/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.10.14"
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_APP_URL
+        sync: false
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend
+      - key: DEFAULT_FROM_EMAIL
+        value: noreply@sante-ecoute.bj
