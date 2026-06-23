@@ -116,6 +116,37 @@ def log_complaint_comment_added(
     )
 
 
+def log_complaint_imported(complaint: Complaint, *, actor, via: str = "csv") -> AuditLog:
+    via_label = "CSV" if via == "csv" else "saisie staff"
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.COMPLAINT_IMPORTED,
+        resource_type=AuditResourceType.COMPLAINT,
+        resource_id=complaint.pk,
+        resource_label=complaint.reference,
+        facility=_complaint_facility(complaint),
+        summary=f"Plainte papier {complaint.reference} importée ({via_label}).",
+        metadata={
+            "reference": complaint.reference,
+            "source": complaint.source,
+            "via": via,
+        },
+    )
+
+
+def log_complaint_ocr_reviewed(complaint: Complaint, *, actor) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.COMPLAINT_OCR_REVIEWED,
+        resource_type=AuditResourceType.COMPLAINT,
+        resource_id=complaint.pk,
+        resource_label=complaint.reference,
+        facility=_complaint_facility(complaint),
+        summary=f"Plainte {complaint.reference} créée après révision OCR.",
+        metadata={"reference": complaint.reference, "source": complaint.source},
+    )
+
+
 def get_hospital_audit_queryset(user):
     qs = AuditLog.objects.select_related("actor", "facility").order_by("-created_at")
 
@@ -172,4 +203,93 @@ def log_user_deactivated(user, *, actor, facility: Facility | None = None) -> Au
         facility=facility,
         summary=f"Compte {user.username} désactivé.",
         metadata={"username": user.username, "role": user.role},
+    )
+
+
+def log_facility_created(facility: Facility, *, actor) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_CREATED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id=facility.pk,
+        resource_label=facility.code,
+        facility=facility,
+        summary=f"Établissement {facility.code} créé ({facility.name}).",
+        metadata={"code": facility.code, "name": facility.name},
+    )
+
+
+def log_facility_updated(facility: Facility, *, actor, changes: dict | None = None) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_UPDATED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id=facility.pk,
+        resource_label=facility.code,
+        facility=facility,
+        summary=f"Établissement {facility.code} mis à jour.",
+        metadata={"code": facility.code, "changes": changes or {}},
+    )
+
+
+def log_facility_deactivated(facility: Facility, *, actor) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_DEACTIVATED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id=facility.pk,
+        resource_label=facility.code,
+        facility=facility,
+        summary=f"Établissement {facility.code} désactivé.",
+        metadata={"code": facility.code},
+    )
+
+
+def log_facilities_imported(*, actor, created: int, updated: int) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_IMPORTED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id="import",
+        resource_label="Import établissements",
+        summary=f"Import établissements : {created} créé(s), {updated} mis à jour.",
+        metadata={"created": created, "updated": updated},
+    )
+
+
+def log_facility_service_changed(
+    facility: Facility,
+    *,
+    actor,
+    service_name: str,
+    change: str,
+) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_SERVICE_CHANGED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id=facility.pk,
+        resource_label=facility.code,
+        facility=facility,
+        summary=f"Service « {service_name} » — {change} ({facility.code}).",
+        metadata={"code": facility.code, "service": service_name, "change": change},
+    )
+
+
+def log_facility_assignment_changed(
+    *,
+    actor,
+    username: str,
+    facility: Facility,
+    change: str,
+) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.FACILITY_ASSIGNMENT_CHANGED,
+        resource_type=AuditResourceType.FACILITY,
+        resource_id=facility.pk,
+        resource_label=facility.code,
+        facility=facility,
+        summary=f"Affectation {username} → {facility.code} ({change}).",
+        metadata={"username": username, "code": facility.code, "change": change},
     )

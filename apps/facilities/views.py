@@ -86,9 +86,21 @@ class FacilityViewSet(viewsets.ModelViewSet):
         facility = serializer.save()
         if self.request.user.role == UserRole.HOSPITAL_MANAGER:
             assign_manager_to_facility(self.request.user, facility)
+        from apps.audit.services import log_facility_created
+
+        log_facility_created(facility, actor=self.request.user)
+
+    def perform_update(self, serializer):
+        facility = serializer.save()
+        from apps.audit.services import log_facility_updated
+
+        log_facility_updated(facility, actor=self.request.user)
 
     def perform_destroy(self, instance):
         deactivate_facility(instance)
+        from apps.audit.services import log_facility_deactivated
+
+        log_facility_deactivated(instance, actor=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -139,6 +151,13 @@ class FacilityViewSet(viewsets.ModelViewSet):
                 {"success": False, "error": {"detail": str(exc)}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        from apps.audit.services import log_facilities_imported
+
+        log_facilities_imported(
+            actor=request.user,
+            created=result["created"],
+            updated=result["updated"],
+        )
         return Response(result)
 
 
@@ -178,6 +197,13 @@ class FacilityCSVImportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        from apps.audit.services import log_facilities_imported
+
+        log_facilities_imported(
+            actor=request.user,
+            created=result["created"],
+            updated=result["updated"],
+        )
         return Response(result)
 
 
@@ -216,11 +242,38 @@ class FacilityServiceViewSet(viewsets.ModelViewSet):
         return FacilityServiceSerializer
 
     def perform_create(self, serializer):
-        serializer.save(facility=self.get_facility())
+        service = serializer.save(facility=self.get_facility())
+        from apps.audit.services import log_facility_service_changed
+
+        log_facility_service_changed(
+            self.get_facility(),
+            actor=self.request.user,
+            service_name=service.name,
+            change="ajouté",
+        )
+
+    def perform_update(self, serializer):
+        service = serializer.save()
+        from apps.audit.services import log_facility_service_changed
+
+        log_facility_service_changed(
+            service.facility,
+            actor=self.request.user,
+            service_name=service.name,
+            change="mis à jour",
+        )
 
     def perform_destroy(self, instance):
         instance.active = False
         instance.save(update_fields=["active"])
+        from apps.audit.services import log_facility_service_changed
+
+        log_facility_service_changed(
+            instance.facility,
+            actor=self.request.user,
+            service_name=instance.name,
+            change="désactivé",
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -241,3 +294,25 @@ class UserFacilityAssignmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return UserFacilityAssignment.objects.select_related("user", "facility")
+
+    def perform_create(self, serializer):
+        assignment = serializer.save()
+        from apps.audit.services import log_facility_assignment_changed
+
+        log_facility_assignment_changed(
+            actor=self.request.user,
+            username=assignment.user.username,
+            facility=assignment.facility,
+            change="affecté",
+        )
+
+    def perform_destroy(self, instance):
+        from apps.audit.services import log_facility_assignment_changed
+
+        log_facility_assignment_changed(
+            actor=self.request.user,
+            username=instance.user.username,
+            facility=instance.facility,
+            change="retiré",
+        )
+        instance.delete()

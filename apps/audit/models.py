@@ -9,14 +9,23 @@ class AuditAction(models.TextChoices):
     COMPLAINT_STATUS_CHANGED = "COMPLAINT_STATUS_CHANGED", "Statut modifié"
     COMPLAINT_REJECTED = "COMPLAINT_REJECTED", "Plainte rejetée"
     COMPLAINT_COMMENT_ADDED = "COMPLAINT_COMMENT_ADDED", "Commentaire interne ajouté"
+    COMPLAINT_IMPORTED = "COMPLAINT_IMPORTED", "Plainte importée"
+    COMPLAINT_OCR_REVIEWED = "COMPLAINT_OCR_REVIEWED", "Plainte OCR révisée"
     USER_CREATED = "USER_CREATED", "Utilisateur créé"
     USER_UPDATED = "USER_UPDATED", "Utilisateur modifié"
     USER_DEACTIVATED = "USER_DEACTIVATED", "Utilisateur désactivé"
+    FACILITY_CREATED = "FACILITY_CREATED", "Établissement créé"
+    FACILITY_UPDATED = "FACILITY_UPDATED", "Établissement modifié"
+    FACILITY_DEACTIVATED = "FACILITY_DEACTIVATED", "Établissement désactivé"
+    FACILITY_IMPORTED = "FACILITY_IMPORTED", "Établissements importés"
+    FACILITY_SERVICE_CHANGED = "FACILITY_SERVICE_CHANGED", "Service modifié"
+    FACILITY_ASSIGNMENT_CHANGED = "FACILITY_ASSIGNMENT_CHANGED", "Affectation modifiée"
 
 
 class AuditResourceType(models.TextChoices):
     COMPLAINT = "complaint", "Plainte"
     USER = "user", "Utilisateur"
+    FACILITY = "facility", "Établissement"
 
 
 class AuditLog(models.Model):

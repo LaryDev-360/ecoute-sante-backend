@@ -44,6 +44,11 @@ class PreferredContactMethod(models.TextChoices):
     SMS = "SMS", "SMS"
 
 
+class ComplaintSource(models.TextChoices):
+    ONLINE = "ONLINE", "En ligne"
+    PAPER = "PAPER", "Dossier papier"
+
+
 class ComplaintCategory(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True)
@@ -115,6 +120,23 @@ class Complaint(models.Model):
         blank=True,
     )
     is_archived = models.BooleanField(default=False)
+    source = models.CharField(
+        max_length=20,
+        choices=ComplaintSource.choices,
+        default=ComplaintSource.ONLINE,
+    )
+    registered_on_paper_at = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date d'enregistrement sur le registre papier (import staff).",
+    )
+    imported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="imported_complaints",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -127,6 +149,7 @@ class Complaint(models.Model):
             models.Index(fields=["current_status"]),
             models.Index(fields=["facility", "current_status"]),
             models.Index(fields=["submitter_profile"]),
+            models.Index(fields=["source"]),
             models.Index(fields=["-created_at"]),
         ]
 
