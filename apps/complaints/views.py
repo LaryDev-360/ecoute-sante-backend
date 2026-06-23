@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -16,8 +17,10 @@ from apps.complaints.serializers import (
     ComplaintCreateResponseSerializer,
     ComplaintCreateSerializer,
     ComplaintTrackSerializer,
+    FacilityPublicSerializer,
     SubmitterProfileChoicesSerializer,
 )
+from apps.facilities.models import Facility, FacilityService
 
 
 class PublicComplaintThrottle(AnonRateThrottle):
@@ -56,6 +59,7 @@ class ComplaintSubmitView(APIView):
                     "category": 1,
                     "title": "Temps d'attente aux urgences",
                     "description": "Attente de plus de 3 heures sans information.",
+                    "requested_actions": "Réduire les délais et informer les patients en salle d'attente.",
                     "severity": "HIGH",
                     "phone": "+22997000001",
                     "email": "citoyen@example.bj",
@@ -126,6 +130,34 @@ class ComplaintCategoryListView(ListAPIView):
     @extend_schema(
         tags=["Public"],
         summary="Lister les catégories de signalement",
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class FacilityPublicListView(ListAPIView):
+    """Établissements actifs et leurs services — pour les formulaires publics."""
+
+    permission_classes = [AllowAny]
+    serializer_class = FacilityPublicSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return (
+            Facility.objects.filter(active=True)
+            .prefetch_related(
+                Prefetch(
+                    "services",
+                    queryset=FacilityService.objects.filter(active=True).order_by("name"),
+                )
+            )
+            .order_by("name")
+        )
+
+    @extend_schema(
+        tags=["Public"],
+        summary="Lister les établissements (formulaire public)",
+        description="Retourne les établissements actifs avec leurs services pour alimenter le dépôt de signalement.",
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)

@@ -12,6 +12,7 @@ from apps.complaints.views import (
     ComplaintCategoryListView,
     ComplaintSubmitView,
     ComplaintTrackView,
+    FacilityPublicListView,
     SubmitterProfileListView,
 )
 
@@ -37,6 +38,11 @@ urlpatterns = [
         "complaints/categories/",
         ComplaintCategoryListView.as_view(),
         name="complaint-categories",
+    ),
+    path(
+        "complaints/meta/facilities/",
+        FacilityPublicListView.as_view(),
+        name="complaint-facilities",
     ),
     path("hospital/dashboard/", HospitalDashboardView.as_view(), name="hospital-dashboard"),
     path("ministry/dashboard/", MinistryDashboardView.as_view(), name="ministry-dashboard"),

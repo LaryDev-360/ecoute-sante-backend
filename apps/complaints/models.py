@@ -95,6 +95,11 @@ class Complaint(models.Model):
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
+    requested_actions = models.TextField(
+        blank=True,
+        verbose_name="actions souhaitées",
+        help_text="Mesures ou actions que le plaignant souhaite voir prises (optionnel).",
+    )
     incident_date = models.DateField(null=True, blank=True)
     severity = models.CharField(max_length=20, choices=Severity.choices)
     current_status = models.CharField(

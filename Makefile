@@ -13,6 +13,9 @@ db-up:
 db-down:
 	docker compose down
 
+makemigrations:
+	$(PYTHON) manage.py makemigrations
+
 migrate:
 	$(PYTHON) manage.py migrate
 

@@ -47,6 +47,7 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
             "reported_agent_name",
             "title",
             "description",
+            "requested_actions",
             "incident_date",
             "severity",
             "phone",
@@ -174,6 +175,20 @@ class ComplaintCategoryPublicSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "description")
 
 
+class FacilityServicePublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FacilityService
+        fields = ("id", "name")
+
+
+class FacilityPublicSerializer(serializers.ModelSerializer):
+    services = FacilityServicePublicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Facility
+        fields = ("id", "name", "code", "region", "city", "services")
+
+
 class SubmitterProfileChoicesSerializer(serializers.Serializer):
     """Métadonnées exposées à l'UI pour le choix du profil déclarant."""
 
@@ -290,6 +305,7 @@ class HospitalComplaintDetailSerializer(serializers.ModelSerializer):
             "complaint_type",
             "title",
             "description",
+            "requested_actions",
             "incident_date",
             "severity",
             "current_status",
