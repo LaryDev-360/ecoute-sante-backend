@@ -13,7 +13,9 @@ from apps.facilities.filters import FacilityFilter
 from apps.facilities.models import Facility, FacilityService, UserFacilityAssignment
 from apps.facilities.permissions import CanManageAssignments, CanManageFacilities, CanManageFacilityServices
 from apps.facilities.serializers import (
+    FacilityCSVUploadSerializer,
     FacilityDetailSerializer,
+    FacilityImportResultSerializer,
     FacilityImportSerializer,
     FacilityListSerializer,
     FacilityServiceSerializer,
@@ -58,6 +60,7 @@ from apps.facilities.services import (
     ),
 )
 class FacilityViewSet(viewsets.ModelViewSet):
+    queryset = Facility.objects.none()
     permission_classes = [IsAuthenticated, CanManageFacilities]
     filterset_class = FacilityFilter
     search_fields = ["name", "code", "city", "region"]
@@ -65,6 +68,8 @@ class FacilityViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Facility.objects.none()
         return (
             get_facilities_queryset_for_user(self.request.user)
             .annotate(services_count=Count("services"))
@@ -144,6 +149,8 @@ class FacilityViewSet(viewsets.ModelViewSet):
         "Colonnes requises : code, name, facility_type, region, city, address. "
         "Optionnel : services (séparés par |), active."
     ),
+    request=FacilityCSVUploadSerializer,
+    responses={200: FacilityImportResultSerializer, 400: OpenApiResponse(description="Erreur de validation")},
 )
 class FacilityCSVImportView(APIView):
     permission_classes = [IsAuthenticated, CanManageFacilities]
@@ -187,6 +194,7 @@ class FacilityCSVImportView(APIView):
     ),
 )
 class FacilityServiceViewSet(viewsets.ModelViewSet):
+    queryset = FacilityService.objects.none()
     permission_classes = [IsAuthenticated, CanManageFacilityServices]
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
@@ -197,6 +205,8 @@ class FacilityServiceViewSet(viewsets.ModelViewSet):
         return facility
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return FacilityService.objects.none()
         facility = self.get_facility()
         return FacilityService.objects.filter(facility=facility)
 

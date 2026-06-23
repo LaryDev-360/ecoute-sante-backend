@@ -6,6 +6,8 @@ from rest_framework.views import APIView
 
 from apps.common.schema import COMMON_ERRORS
 
+from apps.complaints.export import complaint_detail_queryset, export_complaint_detail_csv
+from apps.complaints.models import Complaint
 from apps.complaints.filters import HospitalComplaintFilter
 from apps.complaints.hospital_services import build_hospital_dashboard, get_hospital_complaints_queryset
 from apps.complaints.permissions import IsHospitalComplaintStaff
@@ -49,18 +51,34 @@ class HospitalDashboardView(APIView):
     ),
 )
 class HospitalComplaintViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Complaint.objects.none()
     permission_classes = [IsHospitalComplaintStaff]
     filterset_class = HospitalComplaintFilter
     search_fields = ["reference", "title", "description"]
     ordering_fields = ["created_at", "updated_at", "severity", "current_status"]
 
     def get_queryset(self):
-        return get_hospital_complaints_queryset(self.request.user)
+        if getattr(self, "swagger_fake_view", False):
+            return Complaint.objects.none()
+        qs = get_hospital_complaints_queryset(self.request.user)
+        if self.action in ("retrieve", "export"):
+            return complaint_detail_queryset(qs)
+        return qs
 
     def get_serializer_class(self):
         if self.action == "retrieve":
             return HospitalComplaintDetailSerializer
         return HospitalComplaintListSerializer
+
+    @extend_schema(
+        tags=["Hospital"],
+        summary="Exporter un dossier en CSV",
+        responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
+    )
+    @action(detail=True, methods=["get"], url_path="export")
+    def export(self, request, pk=None):
+        complaint = self.get_object()
+        return export_complaint_detail_csv(complaint)
 
     @extend_schema(
         tags=["Hospital"],

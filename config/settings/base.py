@@ -170,6 +170,10 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API de gestion des signalements et plaintes sanitaires",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "ComplaintStatusEnum": "apps.complaints.models.ComplaintStatus",
+        "RoleEnum": "apps.accounts.models.UserRole",
+    },
     "TAGS": [
         {"name": "Health", "description": "Santé de l'API"},
         {"name": "Auth", "description": "Authentification JWT"},

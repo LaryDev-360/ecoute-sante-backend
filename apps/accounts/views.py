@@ -2,6 +2,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from apps.common.permissions import IsMinistryOrAdmin
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -44,16 +45,16 @@ GENERIC_OTP_RESPONSE = {
 
 
 class RegisterView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [IsMinistryOrAdmin]
     throttle_classes = [AuthRateThrottle]
 
     @extend_schema(
         tags=["Auth"],
-        summary="Inscription",
+        summary="Inscription (staff ministère uniquement)",
         description=(
             "Crée un compte responsable d'établissement (`HOSPITAL_MANAGER`). "
-            "Les rôles admin et ministère sont créés par un administrateur."
+            "Réservé aux administrateurs et superviseurs ministère — "
+            "préférer `POST /ministry/users/` pour l'affectation à un établissement."
         ),
         request=RegisterSerializer,
         responses={201: RegisterResponseSerializer, 400: AUTH_ERRORS[400]},
@@ -195,6 +196,16 @@ class OTPVerifyView(APIView):
             "Pour `RESET_PASSWORD`, confirme le code avant la réinitialisation."
         ),
         request=OTPVerifySerializer,
+        responses={
+            200: OpenApiResponse(
+                response=RegisterResponseSerializer,
+                description=(
+                    "Tokens JWT si `purpose=LOGIN`, sinon message de confirmation "
+                    "avant réinitialisation du mot de passe."
+                ),
+            ),
+            400: AUTH_ERRORS[400],
+        },
         examples=[
             OpenApiExample(
                 "Vérification connexion",

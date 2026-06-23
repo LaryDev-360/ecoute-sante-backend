@@ -9,10 +9,14 @@ class AuditAction(models.TextChoices):
     COMPLAINT_STATUS_CHANGED = "COMPLAINT_STATUS_CHANGED", "Statut modifié"
     COMPLAINT_REJECTED = "COMPLAINT_REJECTED", "Plainte rejetée"
     COMPLAINT_COMMENT_ADDED = "COMPLAINT_COMMENT_ADDED", "Commentaire interne ajouté"
+    USER_CREATED = "USER_CREATED", "Utilisateur créé"
+    USER_UPDATED = "USER_UPDATED", "Utilisateur modifié"
+    USER_DEACTIVATED = "USER_DEACTIVATED", "Utilisateur désactivé"
 
 
 class AuditResourceType(models.TextChoices):
     COMPLAINT = "complaint", "Plainte"
+    USER = "user", "Utilisateur"
 
 
 class AuditLog(models.Model):

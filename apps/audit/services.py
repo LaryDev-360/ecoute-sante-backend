@@ -133,3 +133,43 @@ def get_hospital_audit_queryset(user):
 
 def get_ministry_audit_queryset():
     return AuditLog.objects.select_related("actor", "facility").order_by("-created_at")
+
+
+def log_user_created(user, *, actor, facility: Facility | None = None) -> AuditLog:
+    role_label = user.get_role_display() if hasattr(user, "get_role_display") else user.role
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.USER_CREATED,
+        resource_type=AuditResourceType.USER,
+        resource_id=user.pk,
+        resource_label=user.username,
+        facility=facility,
+        summary=f"Compte {user.username} créé ({role_label}).",
+        metadata={"username": user.username, "role": user.role},
+    )
+
+
+def log_user_updated(user, *, actor, changes: dict, facility: Facility | None = None) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.USER_UPDATED,
+        resource_type=AuditResourceType.USER,
+        resource_id=user.pk,
+        resource_label=user.username,
+        facility=facility,
+        summary=f"Compte {user.username} mis à jour.",
+        metadata={"username": user.username, "changes": changes},
+    )
+
+
+def log_user_deactivated(user, *, actor, facility: Facility | None = None) -> AuditLog:
+    return record_audit_log(
+        actor=actor,
+        action=AuditAction.USER_DEACTIVATED,
+        resource_type=AuditResourceType.USER,
+        resource_id=user.pk,
+        resource_label=user.username,
+        facility=facility,
+        summary=f"Compte {user.username} désactivé.",
+        metadata={"username": user.username, "role": user.role},
+    )

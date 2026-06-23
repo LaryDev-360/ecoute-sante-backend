@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 
 from apps.complaints.attachments import AttachmentValidationError, save_complaint_attachments
 from apps.complaints.models import (
@@ -153,7 +155,8 @@ class ComplaintCreateResponseSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_message(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_message(self, obj) -> str:
         return (
             f"Votre signalement a été enregistré sous la référence {obj.reference}. "
             "Conservez cette référence pour le suivi."
@@ -287,7 +290,8 @@ class HospitalStatusHistorySerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_changed_by_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_changed_by_name(self, obj) -> str | None:
         if obj.changed_by:
             return obj.changed_by.get_full_name() or obj.changed_by.username
         return None
@@ -300,7 +304,8 @@ class HospitalCommentSerializer(serializers.ModelSerializer):
         model = ComplaintComment
         fields = ("id", "author_name", "comment", "created_at")
 
-    def get_author_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_author_name(self, obj) -> str | None:
         if obj.author:
             return obj.author.get_full_name() or obj.author.username
         return None

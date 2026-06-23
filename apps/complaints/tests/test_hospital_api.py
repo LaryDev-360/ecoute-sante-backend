@@ -164,6 +164,26 @@ class HospitalComplaintAPITests(BaseAPITestCase):
         )
         self.assertEqual(response.json()["count"], 1)
 
+    def test_hospital_complaint_csv_export(self):
+        self.auth_as(self.manager)
+        response = self.client.get(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/export/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        content = response.content.decode("utf-8")
+        self.assertIn(self.complaint_a.reference, content)
+        self.assertIn("Description", content)
+        self.assertIn("Plainte A", content)
+
+    def test_hospital_complaint_export_denied_other_facility(self):
+        self.auth_as(self.other_manager)
+        response = self.client.get(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/export/"
+        )
+        self.assertEqual(response.status_code, 404)
+
     def test_dashboard_summary(self):
         change_complaint_status(
             self.complaint_a,

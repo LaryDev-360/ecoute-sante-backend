@@ -1,10 +1,6 @@
-import csv
-from io import StringIO
-
-from django.http import HttpResponse
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -17,6 +13,11 @@ from apps.analytics.services import (
 )
 from apps.complaints.filters import MinistryComplaintFilter
 from apps.complaints.permissions import MinistryPermission
+from apps.complaints.export import (
+    complaint_detail_queryset,
+    export_complaint_detail_csv,
+    export_complaints_csv,
+)
 from apps.complaints.serializers import (
     HospitalComplaintDetailSerializer,
     HospitalComplaintListSerializer,
@@ -27,51 +28,6 @@ def _filtered_queryset(request):
     qs = get_base_complaints_queryset()
     filterset = MinistryComplaintFilter(request.query_params, queryset=qs)
     return filterset.qs
-
-
-def export_complaints_csv(queryset) -> HttpResponse:
-    buffer = StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(
-        [
-            "reference",
-            "title",
-            "status",
-            "severity",
-            "complaint_type",
-            "submitter_profile",
-            "facility_code",
-            "facility_name",
-            "region",
-            "city",
-            "category",
-            "service",
-            "created_at",
-        ]
-    )
-    for complaint in queryset.iterator():
-        writer.writerow(
-            [
-                complaint.reference,
-                complaint.title,
-                complaint.current_status,
-                complaint.severity,
-                complaint.complaint_type,
-                complaint.submitter_profile,
-                complaint.facility.code,
-                complaint.facility.name,
-                complaint.facility.region,
-                complaint.facility.city,
-                complaint.category.name,
-                complaint.service.name,
-                complaint.created_at.isoformat(),
-            ]
-        )
-
-    response = HttpResponse(buffer.getvalue(), content_type="text/csv; charset=utf-8")
-    filename = f"plaintes_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
 
 
 class MinistryDashboardView(APIView):
@@ -124,18 +80,24 @@ class MinistryComplaintViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = get_base_complaints_queryset()
-        if self.action == "retrieve":
-            return qs.prefetch_related(
-                "attachments",
-                "comments__author",
-                "status_history__changed_by",
-            )
+        if self.action in ("retrieve", "export"):
+            return complaint_detail_queryset(qs)
         return qs
 
     def get_serializer_class(self):
         if self.action == "retrieve":
             return HospitalComplaintDetailSerializer
         return HospitalComplaintListSerializer
+
+    @extend_schema(
+        tags=["Ministry"],
+        summary="Exporter un dossier en CSV",
+        responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
+    )
+    @action(detail=True, methods=["get"], url_path="export")
+    def export(self, request, pk=None):
+        complaint = self.get_object()
+        return export_complaint_detail_csv(complaint)
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("export") == "csv":

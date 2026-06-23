@@ -118,7 +118,7 @@ Variables essentielles (voir `.env.example`) :
 | Runtime | Python 3 |
 | Build Command | `./scripts/render_build.sh` |
 | Pre-Deploy Command | `python manage.py migrate --noinput` |
-| Start Command | `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120` |
+| Start Command | `./scripts/render_start.sh` (migrations + gunicorn) |
 | Health Check Path | `/api/v1/health/` |
 
 Variables d’environnement :
@@ -142,6 +142,22 @@ curl https://<votre-service>.onrender.com/api/v1/health/
 ```
 
 Swagger : `https://<votre-service>.onrender.com/api/docs/`
+
+#### Dépannage — base Neon vide (0 tables)
+
+Si le dashboard Neon affiche **0 tables**, les migrations n’ont pas été appliquées sur la base de production.
+
+1. **Vérifier `DATABASE_URL` sur Render** (Environment) : elle doit pointer vers la base Neon `ecoute_sante`, par ex.  
+   `postgresql://user:pass@ep-xxx.region.aws.neon.tech/ecoute_sante?sslmode=require`
+2. **Vérifier les commandes de déploiement** :
+   - Pre-Deploy : `python manage.py migrate --noinput`
+   - Start : `./scripts/render_start.sh` (relance les migrations au démarrage si besoin)
+3. **Appliquer les migrations immédiatement** — Render dashboard → votre service → **Shell** :
+   ```bash
+   python manage.py migrate --noinput
+   ```
+4. **Redéployer** (Manual Deploy) pour que le nouveau `render_start.sh` prenne effet.
+5. Rafraîchir Neon → Tables : vous devriez voir `django_migrations`, `accounts_user`, `facilities_facility`, etc.
 
 #### 4. Données initiales (optionnel)
 

@@ -11,6 +11,7 @@ from apps.complaints.permissions import IsHospitalComplaintStaff, MinistryPermis
 
 
 class HospitalAuditLogListView(ListAPIView):
+    queryset = AuditLog.objects.none()
     permission_classes = [IsHospitalComplaintStaff]
     serializer_class = AuditLogSerializer
     filterset_class = AuditLogFilter
@@ -18,6 +19,8 @@ class HospitalAuditLogListView(ListAPIView):
     search_fields = []
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return AuditLog.objects.none()
         return get_hospital_audit_queryset(self.request.user)
 
     @extend_schema(
