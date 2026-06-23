@@ -114,6 +114,19 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
         return facility
 
 
+class UssdRequestSerializer(serializers.Serializer):
+    """Champs envoyés par la passerelle Africa's Talking à chaque saisie."""
+
+    sessionId = serializers.CharField(help_text="Identifiant de session USSD (constant durant le parcours).")
+    phoneNumber = serializers.CharField(help_text="Numéro du patient (ex: +22997000000).")
+    text = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Saisies cumulées séparées par « * ». Vide au démarrage.",
+    )
+    serviceCode = serializers.CharField(required=False, allow_blank=True, help_text="Code USSD appelé (ex: *384*77716#).")
+
+
 class ComplaintAttachmentResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComplaintAttachment
