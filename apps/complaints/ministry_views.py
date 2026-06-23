@@ -17,7 +17,10 @@ from apps.analytics.services import (
 )
 from apps.complaints.filters import MinistryComplaintFilter
 from apps.complaints.permissions import MinistryPermission
-from apps.complaints.serializers import HospitalComplaintListSerializer
+from apps.complaints.serializers import (
+    HospitalComplaintDetailSerializer,
+    HospitalComplaintListSerializer,
+)
 
 
 def _filtered_queryset(request):
@@ -107,16 +110,32 @@ class MinistryAnalyticsView(APIView):
         description="Filtres : region, facility, status, category, service, severity, date_from, date_to.",
         responses={403: COMMON_ERRORS[403]},
     ),
+    retrieve=extend_schema(
+        tags=["Ministry"],
+        summary="Détail d'une plainte (lecture seule)",
+        responses={403: COMMON_ERRORS[403], 404: COMMON_ERRORS[404]},
+    ),
 )
 class MinistryComplaintViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [MinistryPermission]
-    serializer_class = HospitalComplaintListSerializer
     filterset_class = MinistryComplaintFilter
     search_fields = ["reference", "title", "description", "facility__name", "facility__region"]
     ordering_fields = ["created_at", "updated_at", "severity", "current_status"]
 
     def get_queryset(self):
-        return get_base_complaints_queryset()
+        qs = get_base_complaints_queryset()
+        if self.action == "retrieve":
+            return qs.prefetch_related(
+                "attachments",
+                "comments__author",
+                "status_history__changed_by",
+            )
+        return qs
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return HospitalComplaintDetailSerializer
+        return HospitalComplaintListSerializer
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("export") == "csv":
