@@ -8,3 +8,4 @@ reportlab>=4.0,<5
 psycopg[binary]>=3.1,<4
 django-environ>=0.11,<1
 django-cors-headers>=4.3,<5
+gTTS>=2.5,<3
