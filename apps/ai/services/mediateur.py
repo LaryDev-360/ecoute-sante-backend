@@ -1,3 +1,7 @@
+import base64
+import binascii
+
+from apps.ai.services.audio import transcode_to_mp3
 from apps.ai.services.mistral import MistralError, audio_chat_completion
 from apps.ai.services.openrouter import extract_json_object
 
@@ -44,6 +48,19 @@ def mediate_audio(audio_base64: str, audio_format: str) -> dict:
         )
     if not audio_base64:
         raise GbegbeError("Audio manquant.", code="missing_audio")
+
+    # Transcodage robuste vers MP3 16 kHz mono : absorbe les variations
+    # d'encodage (webm/opus, ogg…) selon les navigateurs avant l'appel Mistral.
+    try:
+        raw_audio = base64.b64decode(audio_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise GbegbeError("Audio base64 invalide.", code="invalid_audio") from exc
+
+    transcoded = transcode_to_mp3(raw_audio)
+    if transcoded:
+        audio_base64 = base64.b64encode(transcoded).decode("ascii")
+        audio_format = "mp3"
+    # Sinon (ffmpeg indisponible) : on tente l'audio d'origine, jamais bloquant.
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
