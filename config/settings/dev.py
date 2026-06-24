@@ -12,7 +12,7 @@ ALLOWED_HOSTS = [
     ".trycloudflare.com",
 ]
 
-# Le webhook arrive en HTTPS via le tunnel : on fait confiance à ces origines pour CSRF.
+
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.app",
     "https://*.ngrok.io",
