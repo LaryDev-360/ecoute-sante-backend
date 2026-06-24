@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.complaints",
     "apps.analytics",
     "apps.ai",
+    "apps.whatsapp",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -158,6 +159,18 @@ MISTRAL_MODEL = env("MISTRAL_MODEL", default="voxtral-small-latest")
 MISTRAL_BASE_URL = env("MISTRAL_BASE_URL", default="https://api.mistral.ai/v1")
 MISTRAL_TIMEOUT = env.int("MISTRAL_TIMEOUT", default=30)
 
+# Green API (WhatsApp)
+GREEN_API_ID_INSTANCE = env("GREEN_API_ID_INSTANCE", default="")
+GREEN_API_TOKEN = env("GREEN_API_TOKEN", default="")
+GREEN_API_BASE_URL = env("GREEN_API_BASE_URL", default="https://api.green-api.com")
+GREEN_API_TIMEOUT = env.int("GREEN_API_TIMEOUT", default=30)
+# Prompts vocaux (TTS français via gTTS) envoyés à chaque étape WhatsApp.
+WHATSAPP_VOICE_PROMPTS = env.bool("WHATSAPP_VOICE_PROMPTS", default=True)
+# URL publique du serveur (tunnel) : Green API y récupère les MP3 des prompts vocaux.
+WHATSAPP_PUBLIC_BASE_URL = env("WHATSAPP_PUBLIC_BASE_URL", default="")
+# Token optionnel : si renseigné, le webhook exige un en-tête Authorization correspondant.
+GREEN_API_WEBHOOK_TOKEN = env("GREEN_API_WEBHOOK_TOKEN", default="")
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -178,5 +191,6 @@ SPECTACULAR_SETTINGS = {
         {"name": "Ministry", "description": "Supervision ministère"},
         {"name": "AI", "description": "Classification assistée"},
         {"name": "USSD", "description": "Passerelle USSD (Africa's Talking)"},
+        {"name": "WhatsApp", "description": "Passerelle WhatsApp (Green API)"},
     ],
 }
