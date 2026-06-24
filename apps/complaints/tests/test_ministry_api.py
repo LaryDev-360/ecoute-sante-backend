@@ -131,6 +131,16 @@ class MinistryAPITests(BaseAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
 
+    def test_ministry_complaint_pdf_export(self):
+        self.auth_as(self.ministry)
+        response = self.client.get(
+            f"/api/v1/ministry/complaints/{self.complaint_a.id}/export/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
     def test_hospital_manager_denied_ministry_dashboard(self):
         self.auth_as(self.manager)
         response = self.client.get("/api/v1/ministry/dashboard/")

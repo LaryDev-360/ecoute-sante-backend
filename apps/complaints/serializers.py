@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 
 from apps.complaints.attachments import AttachmentValidationError, save_complaint_attachments
 from apps.complaints.models import (
@@ -17,6 +19,7 @@ from apps.complaints.services import (
     apply_submitter_context,
     change_complaint_status,
     reject_complaint,
+    resolve_complaint,
     validate_complaint_submission,
 )
 from apps.facilities.models import Facility, FacilityService
@@ -47,6 +50,7 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
             "reported_agent_name",
             "title",
             "description",
+            "requested_actions",
             "incident_date",
             "severity",
             "phone",
@@ -67,9 +71,18 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         attachments = validated_data.pop("attachments", [])
+        request = self.context.get("request")
+        user = request.user if request and request.user.is_authenticated else None
+        if user:
+            validated_data.setdefault("submitted_by", user)
+
         complaint = Complaint.objects.create(**validated_data)
         if attachments:
             save_complaint_attachments(complaint, attachments)
+
+        from apps.audit.services import log_complaint_created
+
+        log_complaint_created(complaint, actor=user)
         return complaint
 
     def validate(self, attrs):
@@ -143,7 +156,8 @@ class ComplaintCreateResponseSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_message(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_message(self, obj) -> str:
         return (
             f"Votre signalement a été enregistré sous la référence {obj.reference}. "
             "Conservez cette référence pour le suivi."
@@ -152,10 +166,16 @@ class ComplaintCreateResponseSerializer(serializers.ModelSerializer):
 
 class ComplaintStatusTimelineSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source="new_status")
+    message = serializers.SerializerMethodField()
 
     class Meta:
         model = ComplaintStatusHistory
-        fields = ("status", "created_at")
+        fields = ("status", "created_at", "message")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_message(self, obj) -> str | None:
+        reason = (obj.reason or "").strip()
+        return reason or None
 
 
 class ComplaintTrackSerializer(serializers.ModelSerializer):
@@ -187,6 +207,20 @@ class ComplaintCategoryPublicSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "description")
 
 
+class FacilityServicePublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FacilityService
+        fields = ("id", "name")
+
+
+class FacilityPublicSerializer(serializers.ModelSerializer):
+    services = FacilityServicePublicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Facility
+        fields = ("id", "name", "code", "region", "city", "services")
+
+
 class SubmitterProfileChoicesSerializer(serializers.Serializer):
     """Métadonnées exposées à l'UI pour le choix du profil déclarant."""
 
@@ -210,9 +244,9 @@ SUBMITTER_PROFILE_META = [
         "label": SubmitterProfile.FACILITY_AGENT.label,
         "description": (
             "Je suis agent d'un établissement et je signale un problème "
-            "impliquant un autre agent (compte ou nom)."
+            "impliquant un autre agent. Dépôt anonyme possible sans connexion."
         ),
-        "requires_auth": True,
+        "requires_auth": False,
         "allows_reported_agent": True,
     },
 ]
@@ -244,6 +278,8 @@ class HospitalComplaintListSerializer(serializers.ModelSerializer):
             "facility_name",
             "facility_code",
             "facility_region",
+            "source",
+            "registered_on_paper_at",
             "created_at",
             "updated_at",
         )
@@ -263,7 +299,8 @@ class HospitalStatusHistorySerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_changed_by_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_changed_by_name(self, obj) -> str | None:
         if obj.changed_by:
             return obj.changed_by.get_full_name() or obj.changed_by.username
         return None
@@ -276,7 +313,8 @@ class HospitalCommentSerializer(serializers.ModelSerializer):
         model = ComplaintComment
         fields = ("id", "author_name", "comment", "created_at")
 
-    def get_author_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_author_name(self, obj) -> str | None:
         if obj.author:
             return obj.author.get_full_name() or obj.author.username
         return None
@@ -303,6 +341,7 @@ class HospitalComplaintDetailSerializer(serializers.ModelSerializer):
             "complaint_type",
             "title",
             "description",
+            "requested_actions",
             "incident_date",
             "severity",
             "current_status",
@@ -312,6 +351,8 @@ class HospitalComplaintDetailSerializer(serializers.ModelSerializer):
             "submitted_by_name",
             "reported_agent_name_display",
             "contact",
+            "source",
+            "registered_on_paper_at",
             "created_at",
             "updated_at",
             "attachments",
@@ -344,15 +385,20 @@ class ComplaintStatusUpdateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def save(self, complaint, user):
+        status = self.validated_data["status"]
+        reason = self.validated_data.get("reason", "")
         try:
+            if status == ComplaintStatus.RESOLVED:
+                return resolve_complaint(complaint, user, reason)
             return change_complaint_status(
                 complaint,
-                self.validated_data["status"],
+                status,
                 changed_by=user,
-                reason=self.validated_data.get("reason", ""),
+                reason=reason,
             )
         except ValueError as exc:
-            raise serializers.ValidationError({"status": str(exc)}) from exc
+            field = "reason" if status == ComplaintStatus.RESOLVED else "status"
+            raise serializers.ValidationError({field: str(exc)}) from exc
 
 
 class ComplaintRejectSerializer(serializers.Serializer):
@@ -373,8 +419,12 @@ class ComplaintCommentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         complaint = self.context["complaint"]
         user = self.context["request"].user
-        return ComplaintComment.objects.create(
+        comment = ComplaintComment.objects.create(
             complaint=complaint,
             author=user,
             **validated_data,
         )
+        from apps.audit.services import log_complaint_comment_added
+
+        log_complaint_comment_added(comment, actor=user)
+        return comment

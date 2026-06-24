@@ -90,6 +90,35 @@ class HospitalComplaintAPITests(BaseAPITestCase):
         self.assertEqual(self.complaint_a.current_status, ComplaintStatus.IN_PROGRESS)
         self.assertEqual(self.complaint_a.status_history.count(), 2)
 
+    def test_resolve_requires_resolution_note(self):
+        self.auth_as(self.manager)
+        response = self.client.patch(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/status/",
+            {"status": ComplaintStatus.RESOLVED, "reason": ""},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "reason",
+            response.json().get("error", response.json()),
+        )
+
+    def test_resolve_with_note_succeeds(self):
+        self.auth_as(self.manager)
+        response = self.client.patch(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/status/",
+            {
+                "status": ComplaintStatus.RESOLVED,
+                "reason": "Formation du personnel effectuée ; Procédures améliorées",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.complaint_a.refresh_from_db()
+        self.assertEqual(self.complaint_a.current_status, ComplaintStatus.RESOLVED)
+        latest = self.complaint_a.status_history.order_by("-created_at").first()
+        self.assertIn("Formation du personnel", latest.reason)
+
     def test_reject_complaint_with_reason(self):
         self.auth_as(self.manager)
         response = self.client.patch(
@@ -163,6 +192,27 @@ class HospitalComplaintAPITests(BaseAPITestCase):
             f"/api/v1/hospital/complaints/?status={ComplaintStatus.RESOLVED}"
         )
         self.assertEqual(response.json()["count"], 1)
+
+    def test_hospital_complaint_pdf_export(self):
+        self.auth_as(self.manager)
+        response = self.client.get(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/export/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(
+            f'filename="{self.complaint_a.reference}.pdf"',
+            response["Content-Disposition"],
+        )
+
+    def test_hospital_complaint_export_denied_other_facility(self):
+        self.auth_as(self.other_manager)
+        response = self.client.get(
+            f"/api/v1/hospital/complaints/{self.complaint_a.id}/export/"
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_dashboard_summary(self):
         change_complaint_status(

@@ -18,9 +18,11 @@ urlpatterns = [
     path("whatsapp/", include("apps.whatsapp.urls")),
     path("api/v1/", include("apps.common.urls")),
     path("api/v1/auth/", include("apps.accounts.urls")),
+    path("api/v1/", include("apps.accounts.staff_urls")),
     path("api/v1/", include("apps.facilities.urls")),
     path("api/v1/", include("apps.complaints.urls")),
     path("api/v1/", include("apps.ai.urls")),
+    path("api/v1/", include("apps.audit.urls")),
     # OpenAPI / Swagger
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

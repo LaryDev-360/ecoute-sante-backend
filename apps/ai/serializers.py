@@ -132,3 +132,27 @@ class GbegbeResponseSerializer(serializers.Serializer):
     service = serializers.CharField(help_text="urgences, consultation, pharmacie ou autre.")
     gravite = serializers.CharField(help_text="faible, moyen ou urgent.")
     resume = serializers.CharField(help_text="Résumé synthétique du signalement.")
+
+
+class GbegbePrefillResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    prefill = serializers.DictField(
+        child=serializers.CharField(),
+        help_text="Champs préremplis pour le formulaire /signaler.",
+    )
+    needs_manual_review = serializers.BooleanField()
+
+    class PrefillData(serializers.Serializer):
+        submitter_profile = serializers.CharField()
+        submission_type = serializers.CharField()
+        complaint_type = serializers.CharField()
+        nature_ui = serializers.CharField()
+        facility = serializers.IntegerField(allow_null=True)
+        service = serializers.IntegerField(allow_null=True)
+        category = serializers.IntegerField(allow_null=True)
+        title = serializers.CharField()
+        description = serializers.CharField()
+        severity = serializers.CharField()
+        detected_language = serializers.CharField()
+        requested_actions = serializers.CharField(allow_blank=True)
+        needs_manual_review = serializers.BooleanField()

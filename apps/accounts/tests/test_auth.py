@@ -3,7 +3,28 @@ from apps.common.tests.base import BaseAPITestCase
 
 
 class RegisterTests(BaseAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.ministry = self.create_user(
+            username="ministry.register",
+            role=UserRole.MINISTRY_SUPERVISOR,
+        )
+
+    def test_register_requires_staff_auth(self):
+        response = self.client.post(
+            "/api/v1/auth/register/",
+            {
+                "username": "new.manager",
+                "email": "new.manager@test.bj",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+            },
+            format="json",
+        )
+        self.assertIn(response.status_code, (401, 403))
+
     def test_register_creates_hospital_manager_with_tokens(self):
+        self.auth_as(self.ministry)
         response = self.client.post(
             "/api/v1/auth/register/",
             {
@@ -27,6 +48,7 @@ class RegisterTests(BaseAPITestCase):
 
     def test_register_rejects_duplicate_username(self):
         self.create_user(username="existing")
+        self.auth_as(self.ministry)
 
         response = self.client.post(
             "/api/v1/auth/register/",
@@ -43,6 +65,7 @@ class RegisterTests(BaseAPITestCase):
         self.assertIn("username", response.json()["error"])
 
     def test_register_rejects_password_mismatch(self):
+        self.auth_as(self.ministry)
         response = self.client.post(
             "/api/v1/auth/register/",
             {

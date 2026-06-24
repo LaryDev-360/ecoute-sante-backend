@@ -1,7 +1,7 @@
 .PHONY: install migrate seed run test db-up db-down
 
 VENV = venv/bin/activate
-PYTHON = . $(VENV) && python
+PYTHON = venv/bin/python
 
 install:
 	python3 -m venv venv
@@ -13,10 +13,16 @@ db-up:
 db-down:
 	docker compose down
 
+makemigrations:
+	$(PYTHON) manage.py makemigrations
+
 migrate:
 	$(PYTHON) manage.py migrate
 
 seed: migrate
+	$(PYTHON) manage.py seed_if_empty --force
+
+seed-fresh: migrate
 	$(PYTHON) manage.py seed_facilities
 	$(PYTHON) manage.py seed_data
 

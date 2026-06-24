@@ -125,6 +125,16 @@ class FacilityImportSerializer(serializers.Serializer):
     facilities = FacilityImportItemSerializer(many=True, min_length=1)
 
 
+class FacilityCSVUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="Fichier CSV UTF-8")
+
+
+class FacilityImportResultSerializer(serializers.Serializer):
+    created = serializers.IntegerField()
+    updated = serializers.IntegerField()
+    facilities = serializers.ListField(child=serializers.DictField())
+
+
 class UserFacilityAssignmentSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)

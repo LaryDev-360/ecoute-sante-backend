@@ -85,6 +85,100 @@ Variables essentielles (voir `.env.example`) :
 | `DATABASE_URL` | URL PostgreSQL (`postgres://user:pass@host:5432/db`) |
 | `CORS_ALLOWED_ORIGINS` | Origines frontend HTTPS autorisées |
 
+### Déploiement Render + Neon
+
+#### 1. Base de données Neon
+
+1. Créer un projet sur [neon.tech](https://neon.tech) (région proche de Frankfurt si possible).
+2. Copier la **connection string** (format `postgresql://…@ep-….neon.tech/neondb?sslmode=require`).
+3. Optionnel : renommer la base en `sante_ecoute` dans le SQL Editor Neon :
+   ```sql
+   CREATE DATABASE sante_ecoute;
+   ```
+   Puis ajuster le nom dans l’URL de connexion.
+
+#### 2. Service web Render
+
+**Option A — Blueprint (recommandé)**
+
+1. Pousser le dépôt sur GitHub/GitLab.
+2. Sur [render.com](https://render.com) : **New → Blueprint** → sélectionner le repo.
+3. Render lit `render.yaml` et crée le service `sante-ecoute-api`.
+4. Dans le dashboard Render → **Environment**, renseigner :
+   - `DATABASE_URL` — URL Neon (avec `?sslmode=require`)
+   - `CORS_ALLOWED_ORIGINS` — URL du frontend (ex. `https://mon-app.vercel.app`)
+   - `OPENROUTER_API_KEY` — clé OpenRouter (si classification IA)
+   - `OPENROUTER_APP_URL` — URL publique Render (ex. `https://sante-ecoute-api.onrender.com`)
+5. Déployer ; les migrations s’exécutent via `preDeployCommand`.
+
+**Option B — Manuel**
+
+| Champ | Valeur |
+|-------|--------|
+| Runtime | Python 3 |
+| Build Command | `./scripts/render_build.sh` |
+| Pre-Deploy Command | `python manage.py migrate --noinput` |
+| Start Command | `./scripts/render_start.sh` (migrations + gunicorn) |
+| Health Check Path | `/api/v1/health/` |
+
+Variables d’environnement :
+
+| Variable | Valeur |
+|----------|--------|
+| `DJANGO_SETTINGS_MODULE` | `config.settings.prod` |
+| `PYTHON_VERSION` | `3.10.14` |
+| `SECRET_KEY` | générer une clé longue |
+| `DEBUG` | `false` |
+| `ALLOWED_HOSTS` | `.onrender.com` (+ domaine custom si besoin) |
+| `DATABASE_URL` | URL Neon |
+
+`RENDER_EXTERNAL_HOSTNAME` est injecté automatiquement par Render (ALLOWED_HOSTS + CSRF).
+
+#### 3. Vérification
+
+```bash
+curl https://<votre-service>.onrender.com/api/v1/health/
+# {"status":"ok"}
+```
+
+Swagger : `https://<votre-service>.onrender.com/api/docs/`
+
+#### Dépannage — base Neon vide (0 tables)
+
+Si le dashboard Neon affiche **0 tables**, les migrations n’ont pas été appliquées sur la base de production.
+
+1. **Vérifier `DATABASE_URL` sur Render** (Environment) : elle doit pointer vers la base Neon `ecoute_sante`, par ex.  
+   `postgresql://user:pass@ep-xxx.region.aws.neon.tech/ecoute_sante?sslmode=require`
+2. **Vérifier les commandes de déploiement** :
+   - Pre-Deploy : `python manage.py migrate --noinput`
+   - Start : `./scripts/render_start.sh` (relance les migrations au démarrage si besoin)
+3. **Appliquer les migrations immédiatement** — Render dashboard → votre service → **Shell** :
+   ```bash
+   python manage.py migrate --noinput
+   ```
+4. **Redéployer** (Manual Deploy) pour que le nouveau `render_start.sh` prenne effet.
+5. Rafraîchir Neon → Tables : vous devriez voir `django_migrations`, `accounts_user`, `facilities_facility`, etc.
+
+#### 4. Données initiales
+
+Au **premier déploiement** (base sans utilisateurs), `render_migrate.sh` exécute automatiquement `seed_if_empty` (établissements, comptes démo, plaintes).
+
+Pour forcer le seed manuellement (Render Shell) :
+
+```bash
+python manage.py seed_if_empty --force
+# ou séparément :
+python manage.py seed_facilities
+python manage.py seed_data
+```
+
+En local : `make seed` (équivalent à `seed_if_empty --force` après migrate).
+
+#### Limitations Render (plan gratuit)
+
+- **Fichiers média** (`media/`) : disque éphémère — les pièces jointes sont perdues au redémarrage. Pour la prod, prévoir un stockage objet (S3, Cloudinary, etc.).
+- **Cold start** : le service s’endort après inactivité (~15 s au premier appel).
+
 ## Authentification
 
 | Méthode | Route | Description |

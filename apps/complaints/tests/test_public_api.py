@@ -42,7 +42,11 @@ class PublicComplaintAPITests(BaseAPITestCase):
         return data
 
     def test_submit_complaint_creates_reference_and_history(self):
-        response = self.client.post("/api/v1/complaints/", self._payload(), format="json")
+        response = self.client.post(
+            "/api/v1/complaints/",
+            self._payload(requested_actions="Sanctions et formation du personnel concerné."),
+            format="json",
+        )
 
         self.assertEqual(response.status_code, 201)
         data = response.json()
@@ -50,6 +54,10 @@ class PublicComplaintAPITests(BaseAPITestCase):
         self.assertEqual(data["current_status"], ComplaintStatus.RECEIVED)
 
         complaint = Complaint.objects.get(reference=data["reference"])
+        self.assertEqual(
+            complaint.requested_actions,
+            "Sanctions et formation du personnel concerné.",
+        )
         self.assertEqual(complaint.status_history.count(), 1)
         self.assertIn("Conservez cette référence", data["message"])
 
@@ -101,17 +109,20 @@ class PublicComplaintAPITests(BaseAPITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_facility_agent_submit_requires_auth(self):
+    def test_facility_agent_anonymous_submit(self):
         response = self.client.post(
             "/api/v1/complaints/",
             self._payload(
                 submitter_profile=SubmitterProfile.FACILITY_AGENT,
-                submission_type=SubmissionType.CONFIDENTIAL,
+                submission_type=SubmissionType.ANONYMOUS,
                 reported_agent_name="Agent X",
             ),
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        complaint = Complaint.objects.get(reference=response.json()["reference"])
+        self.assertEqual(complaint.submitter_profile, SubmitterProfile.FACILITY_AGENT)
+        self.assertIsNone(complaint.submitted_by)
 
     def test_facility_agent_submit_with_jwt(self):
         agent_a = self.create_user(username="agent.pub.a", role=UserRole.FACILITY_AGENT)
@@ -144,6 +155,14 @@ class PublicComplaintAPITests(BaseAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertGreaterEqual(len(response.json()), 1)
 
+    def test_list_facilities_public(self):
+        response = self.client.get("/api/v1/complaints/meta/facilities/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertGreaterEqual(len(data), 1)
+        self.assertIn("services", data[0])
+        self.assertGreaterEqual(len(data[0]["services"]), 1)
+
     def test_list_submitter_profiles(self):
         response = self.client.get("/api/v1/complaints/meta/submitter-profiles/")
         self.assertEqual(response.status_code, 200)
@@ -173,4 +192,7 @@ class PublicComplaintAPITests(BaseAPITestCase):
 
         response = self.client.get(f"/api/v1/complaints/track/{complaint.reference}/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["status_timeline"]), 2)
+        data = response.json()
+        self.assertEqual(len(data["status_timeline"]), 2)
+        messages = [e.get("message") for e in data["status_timeline"]]
+        self.assertIn("Prise en charge", messages)
