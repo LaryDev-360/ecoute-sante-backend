@@ -117,7 +117,7 @@ def _send_status_email(
             message="\n".join(lines),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[recipient],
-            fail_silently=False,
+            fail_silently=True,
         )
         return True
     except Exception:

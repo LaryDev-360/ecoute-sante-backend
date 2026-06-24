@@ -71,13 +71,20 @@ def _send_otp(user: User, code: str, purpose: str, channel: str) -> None:
     if channel == OTPChannel.EMAIL:
         if not user.email:
             raise OTPError("Aucune adresse e-mail associée à ce compte.", "no_email")
-        send_mail(
-            subject="Code de vérification — Santé Écoute",
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        try:
+            sent = send_mail(
+                subject="Code de vérification — Santé Écoute",
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception("Failed to send OTP email to %s", user.email)
+            raise OTPError("Impossible d'envoyer le code par e-mail.", "email_send_failed")
+        if sent == 0:
+            logger.error("OTP email not delivered to %s", user.email)
+            raise OTPError("Impossible d'envoyer le code par e-mail.", "email_send_failed")
         return
 
     if not user.phone:
