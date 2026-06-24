@@ -4,7 +4,8 @@ URL configuration for Santé Écoute.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -29,6 +30,17 @@ urlpatterns = [
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
+    ),
+]
+
+# Prompts vocaux TTS : servis publiquement (y compris en production) pour que
+# Green API puisse récupérer les MP3. On expose uniquement `media/tts/`
+# (audio non sensible) — jamais les pièces jointes des plaintes.
+urlpatterns += [
+    re_path(
+        r"^media/tts/(?P<path>.*)$",
+        serve,
+        {"document_root": str(settings.MEDIA_ROOT / "tts")},
     ),
 ]
 
