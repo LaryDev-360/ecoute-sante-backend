@@ -56,6 +56,39 @@ _AI_SEVERITY_MAP = {
     "urgent": Severity.URGENT,
 }
 
+# Réponses acceptées en texte libre (en plus des numéros) pour fluidifier.
+LANG_SYNONYMS = {
+    "1": "fr", "fr": "fr", "francais": "fr", "français": "fr", "french": "fr",
+    "2": "fon", "fon": "fon", "fongbe": "fon", "fɔngbe": "fon",
+    "3": "yo", "yo": "yo", "yoruba": "yo", "yorùbá": "yo",
+}
+TYPE_SYNONYMS = {
+    "1": ComplaintType.COMPLAINT, "plainte": ComplaintType.COMPLAINT,
+    "2": ComplaintType.SUGGESTION, "suggestion": ComplaintType.SUGGESTION,
+    "3": ComplaintType.APPRECIATION, "felicitation": ComplaintType.APPRECIATION,
+    "félicitation": ComplaintType.APPRECIATION, "felicitations": ComplaintType.APPRECIATION,
+    "félicitations": ComplaintType.APPRECIATION,
+}
+ANON_OUI = {"1", "oui", "anonyme", "o", "yes"}
+ANON_NON = {"2", "non", "n", "no"}
+CONFIRM_OUI = {"1", "oui", "confirmer", "ok", "valider", "envoyer", "o"}
+CONFIRM_NON = {"2", "non", "recommencer", "annuler", "n"}
+
+TYPE_LABELS = {value: label for _key, value, label in TYPE_CHOICES}
+SEVERITY_LABELS = {
+    Severity.LOW: "Faible", Severity.MEDIUM: "Moyenne",
+    Severity.HIGH: "Élevée", Severity.URGENT: "Urgente",
+}
+
+
+def _select_by_name(qs, latest: str):
+    """Permet de répondre par le nom (et non le numéro) si non ambigu."""
+    latest = (latest or "").strip()
+    if len(latest) < 2:
+        return None
+    hits = list(qs.filter(name__icontains=latest)[:2])
+    return hits[0] if len(hits) == 1 else None
+
 
 # --- Pagination des listes dynamiques ---------------------------------------
 
@@ -145,7 +178,28 @@ def _menu_anonymat(error: str = "") -> str:
     return (
         f"{prefix}Souhaitez-vous rester anonyme ?\n"
         "1. Oui, anonyme\n"
-        "2. Non, je donne mon numéro"
+        "2. Non, je donne mon numéro\n\n"
+        "_Répondez 1/2 ou « oui »/« non »._"
+    )
+
+
+def _recap(session) -> str:
+    anon = "Oui 🔒" if session.anonymous else "Non"
+    severity = SEVERITY_LABELS.get(session.severity, "Moyenne")
+    desc = session.description.strip()
+    if len(desc) > 160:
+        desc = desc[:160] + "…"
+    return (
+        "📋 *Récapitulatif de votre signalement*\n"
+        f"• Type : {TYPE_LABELS.get(session.complaint_type, 'Plainte')}\n"
+        f"• Établissement : {session.facility.name}\n"
+        f"• Service : {session.service.name}\n"
+        f"• Catégorie : {session.category.name}\n"
+        f"• Gravité : {severity}\n"
+        f"• Anonyme : {anon}\n"
+        f"• Description : {desc}\n\n"
+        "1. ✅ Confirmer et envoyer\n"
+        "2. 🔄 Recommencer"
     )
 
 
@@ -174,32 +228,33 @@ def _transcrire_audio(session, audio_bytes: bytes, audio_format: str) -> dict | 
 
 
 def _step_lang(session, latest: str) -> str:
-    mapping = {key: value for key, value, _ in LANG_CHOICES}
-    if latest in mapping:
-        session.language = mapping[latest]
+    lang = LANG_SYNONYMS.get(latest.lower())
+    if lang:
+        session.language = lang
         session.step = "ASK_TYPE"
         session.save()
         return _menu_type()
-    return _menu_langue(error="Choix invalide.")
+    return _menu_langue(error="Je n'ai pas compris. Tapez 1, 2 ou 3.")
 
 
 def _step_type(session, latest: str) -> str:
-    mapping = {key: value for key, value, _ in TYPE_CHOICES}
-    if latest in mapping:
-        session.complaint_type = mapping[latest]
+    type_value = TYPE_SYNONYMS.get(latest.lower())
+    if type_value:
+        session.complaint_type = type_value
         session.step = "ASK_ANON"
         session.save()
         return _menu_anonymat()
-    return _menu_type(error="Choix invalide.")
+    return _menu_type(error="Je n'ai pas compris. Tapez 1, 2 ou 3.")
 
 
 def _step_anon(session, latest: str) -> str:
-    if latest == "1":
+    value = latest.lower()
+    if value in ANON_OUI:
         session.anonymous = True
-    elif latest == "2":
+    elif value in ANON_NON:
         session.anonymous = False
     else:
-        return _menu_anonymat(error="Répondez 1 (anonyme) ou 2 (non).")
+        return _menu_anonymat(error="Répondez « oui » (anonyme) ou « non ».")
     session.step = "ASK_FACILITY"
     session.page = 0
     session.save()
@@ -222,14 +277,18 @@ def _step_facility(session, latest: str) -> str:
         session.page = value
         session.save()
         return _render_menu("🏥 Choisissez l'établissement :", qs, session.page)
-    if kind == "select":
-        session.facility = value
+    obj = value if kind == "select" else _select_by_name(qs, latest)
+    if obj:
+        session.facility = obj
         session.service = None
         session.step = "ASK_SERVICE"
         session.page = 0
         session.save()
         return _enter_services(session)
-    return _render_menu("🏥 Choisissez l'établissement :", qs, session.page, error="Choix invalide.")
+    return _render_menu(
+        "🏥 Choisissez l'établissement :", qs, session.page,
+        error="Tapez le numéro ou le nom de l'établissement.",
+    )
 
 
 def _enter_services(session) -> str:
@@ -253,14 +312,16 @@ def _step_service(session, latest: str) -> str:
         session.page = value
         session.save()
         return _render_menu("🩺 Choisissez le service :", qs, session.page, with_other=True)
-    if kind == "select":
-        session.service = value
+    obj = value if kind == "select" else _select_by_name(qs, latest)
+    if obj:
+        session.service = obj
         session.step = "ASK_CATEGORY"
         session.page = 0
         session.save()
         return _enter_categories(session)
     return _render_menu(
-        "🩺 Choisissez le service :", qs, session.page, error="Choix invalide.", with_other=True
+        "🩺 Choisissez le service :", qs, session.page,
+        error="Tapez le numéro, le nom, ou 0 pour « Autre ».", with_other=True,
     )
 
 
@@ -292,17 +353,21 @@ def _step_category(session, latest: str) -> str:
         session.page = value
         session.save()
         return _render_menu("🗂️ Choisissez la catégorie :", qs, session.page)
-    if kind == "select":
-        session.category = value
+    obj = value if kind == "select" else _select_by_name(qs, latest)
+    if obj:
+        session.category = obj
         session.save()
         return _apres_categorie(session)
-    return _render_menu("🗂️ Choisissez la catégorie :", qs, session.page, error="Choix invalide.")
+    return _render_menu(
+        "🗂️ Choisissez la catégorie :", qs, session.page,
+        error="Tapez le numéro ou le nom de la catégorie.",
+    )
 
 
 def _apres_categorie(session) -> str:
     """La description peut déjà exister (note vocale transcrite en amont)."""
     if session.description.strip():
-        return _creer_et_confirmer(session)
+        return _vers_confirmation(session)
     session.step = "ASK_DESCRIPTION"
     session.save()
     return "✍️ Décrivez votre signalement (message texte ou *note vocale*) :"
@@ -311,10 +376,26 @@ def _apres_categorie(session) -> str:
 def _step_description(session, latest: str) -> str:
     description = (latest or "").strip()
     if len(description) < 5:
-        return "Description trop courte. Décrivez votre signalement (min. 5 caractères) :"
+        return "Décrivez un peu plus votre signalement (au moins 5 caractères), ou envoyez une *note vocale*."
     session.description = description
     session.save()
-    return _creer_et_confirmer(session)
+    return _vers_confirmation(session)
+
+
+def _vers_confirmation(session) -> str:
+    session.step = "ASK_CONFIRM"
+    session.save()
+    return _recap(session)
+
+
+def _step_confirm(session, latest: str) -> str:
+    value = latest.lower()
+    if value in CONFIRM_OUI:
+        return _creer_et_confirmer(session)
+    if value in CONFIRM_NON:
+        _reset(session)
+        return "🔄 D'accord, on recommence.\n\n" + _menu_langue()
+    return "Répondez *1* pour confirmer ✅ ou *2* pour recommencer 🔄.\n\n" + _recap(session)
 
 
 @transaction.atomic
@@ -367,6 +448,7 @@ _STEP_HANDLERS = {
     "ASK_SERVICE_OTHER": _step_service_other,
     "ASK_CATEGORY": _step_category,
     "ASK_DESCRIPTION": _step_description,
+    "ASK_CONFIRM": _step_confirm,
 }
 
 # Mots-clés qui ramènent à l'accueil à n'importe quelle étape.
@@ -430,7 +512,7 @@ def handle_incoming(
             session.save()
             return "🗣️ J'ai bien reçu votre message vocal.\n\n" + _menu_anonymat()
         if session.step == "ASK_DESCRIPTION":
-            return _creer_et_confirmer(session)
+            return _vers_confirmation(session)
         session.save()
         return "🗣️ Message vocal reçu. Veuillez répondre au menu en cours."
 
